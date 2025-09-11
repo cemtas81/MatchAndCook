@@ -20,11 +20,9 @@ public class TouchInputController : MonoBehaviour
     private bool isTouching = false;
     private Tile selectedTile;
     private Camera mainCamera;
+    private GridManager gridManager;
     
-    // Events
-    public System.Action<Tile> OnTileSelected;
-    public System.Action<Tile, Tile> OnTileSwap;
-    public System.Action OnTouchCancelled;
+    // Events - removed for simplification as per requirements
     
     void Start()
     {
@@ -32,6 +30,12 @@ public class TouchInputController : MonoBehaviour
         if (mainCamera == null)
         {
             mainCamera = FindObjectOfType<Camera>();
+        }
+        
+        gridManager = FindObjectOfType<GridManager>();
+        if (gridManager == null)
+        {
+            Debug.LogError("TouchInputController: GridManager not found!");
         }
     }
     
@@ -45,6 +49,9 @@ public class TouchInputController : MonoBehaviour
     /// </summary>
     private void HandleTouchInput()
     {
+        // Check if input is locked during animations
+        if (gridManager != null && gridManager.IsInputLocked()) return;
+        
         // Use Unity's Input system that works for both touch and mouse
         if (Input.GetMouseButtonDown(0))
         {
@@ -148,7 +155,6 @@ public class TouchInputController : MonoBehaviour
     {
         selectedTile = tile;
         ApplySelectionEffect(tile, true);
-        OnTileSelected?.Invoke(tile);
         
         Debug.Log($"Selected tile at ({tile.gridX}, {tile.gridY})");
     }
@@ -162,18 +168,17 @@ public class TouchInputController : MonoBehaviour
         {
             ApplySelectionEffect(selectedTile, false);
             selectedTile = null;
-            OnTouchCancelled?.Invoke();
         }
     }
     
     /// <summary>
-    /// Attempt to swap two tiles
+    /// Attempt to swap two tiles via GridManager
     /// </summary>
     private void AttemptSwap(Tile tile1, Tile tile2)
     {
-        if (tile1 != null && tile2 != null && AreAdjacent(tile1, tile2))
+        if (tile1 != null && tile2 != null && AreAdjacent(tile1, tile2) && gridManager != null)
         {
-            OnTileSwap?.Invoke(tile1, tile2);
+            gridManager.TrySwapTiles(tile1, tile2);
             DeselectTile(); // Clear selection after swap attempt
             
             Debug.Log($"Swapping tiles ({tile1.gridX}, {tile1.gridY}) and ({tile2.gridX}, {tile2.gridY})");
@@ -224,14 +229,14 @@ public class TouchInputController : MonoBehaviour
     }
 
     /// <summary>
-    /// Convert screen position to world position
+    /// Convert screen position to world position - fixed for both mobile and desktop
     /// </summary>
     private Vector3 ScreenToWorldPoint(Vector2 screenPosition)
     {
-        // Z ekseni, kameradan bakýlan düzleme olan uzaklýk (2D için genelde 0)
+        // For 2D games, set the z distance to match the camera's distance from the game plane
         Vector3 screenPoint = new Vector3(screenPosition.x, screenPosition.y, Mathf.Abs(mainCamera.transform.position.z));
         Vector3 worldPoint = mainCamera.ScreenToWorldPoint(screenPoint);
-        worldPoint.z = 0; // 2D düzlemde çalýþýyoruz
+        worldPoint.z = 0; // Force to 2D plane
         return worldPoint;
     }
 
@@ -240,14 +245,19 @@ public class TouchInputController : MonoBehaviour
     /// </summary>
     private Tile GetTileAtPosition(Vector3 worldPosition)
     {
-        Debug.Log("Raycast at: " + worldPosition);
         RaycastHit2D hit = Physics2D.Raycast(worldPosition, Vector2.zero, Mathf.Infinity, touchLayerMask);
         
         if (hit.collider != null)
         {
-            return hit.collider.GetComponent<Tile>();
+            Tile tile = hit.collider.GetComponent<Tile>();
+            if (tile != null)
+            {
+                Debug.Log($"Hit tile at ({tile.gridX}, {tile.gridY}) - World position: {worldPosition}");
+            }
+            return tile;
         }
         
+        Debug.Log($"No tile hit at world position: {worldPosition}");
         return null;
     }
     
@@ -256,7 +266,7 @@ public class TouchInputController : MonoBehaviour
     /// </summary>
     private Tile GetTileInDirection(Tile fromTile, Vector2 direction)
     {
-        if (fromTile == null) return null;
+        if (fromTile == null || gridManager == null) return null;
         
         int targetX = fromTile.gridX;
         int targetY = fromTile.gridY;
@@ -273,16 +283,12 @@ public class TouchInputController : MonoBehaviour
             targetY += direction.y > 0 ? 1 : -1;
         }
         
-        // Find tile at target position
-        GridManager gridManager = FindObjectOfType<GridManager>();
-        if (gridManager != null)
+        // Get tile from GridManager
+        Tile[,] grid = gridManager.GetGrid();
+        if (targetX >= 0 && targetX < grid.GetLength(0) && 
+            targetY >= 0 && targetY < grid.GetLength(1))
         {
-            Tile[,] grid = gridManager.GetGrid();
-            if (targetX >= 0 && targetX < grid.GetLength(0) && 
-                targetY >= 0 && targetY < grid.GetLength(1))
-            {
-                return grid[targetX, targetY];
-            }
+            return grid[targetX, targetY];
         }
         
         return null;
