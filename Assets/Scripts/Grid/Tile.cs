@@ -1,3 +1,4 @@
+using DG.Tweening;
 using UnityEngine;
 
 /// <summary>
@@ -71,54 +72,37 @@ public class Tile : MonoBehaviour
             default:              return Color.white;
         }
     }
-    
+
     /// <summary>
     /// Animate tile moving to a new position
     /// </summary>
     public void MoveTo(Vector3 targetPosition, System.Action onComplete = null)
     {
         if (IsMoving) return;
-        
         IsMoving = true;
-        StartCoroutine(MoveCoroutine(targetPosition, swapDuration, onComplete));
+        transform.DOMove(targetPosition, swapDuration)
+            .SetEase(Ease.InOutQuad)
+            .OnComplete(() => {
+                IsMoving = false;
+                onComplete?.Invoke();
+            });
     }
-    
+
     /// <summary>
     /// Animate tile falling to a new position
     /// </summary>
     public void FallTo(Vector3 targetPosition, System.Action onComplete = null)
     {
         if (IsMoving) return;
-        
         IsMoving = true;
-        StartCoroutine(MoveCoroutine(targetPosition, fallDuration, onComplete));
+        transform.DOMove(targetPosition, fallDuration)
+            .SetEase(Ease.InBounce)
+            .OnComplete(() => {
+                IsMoving = false;
+                onComplete?.Invoke();
+            });
     }
-    
-    /// <summary>
-    /// Coroutine for smooth movement animation
-    /// </summary>
-    private System.Collections.IEnumerator MoveCoroutine(Vector3 targetPosition, float duration, System.Action onComplete)
-    {
-        Vector3 startPosition = transform.position;
-        float elapsed = 0f;
-        
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float progress = elapsed / duration;
-            
-            // Smooth easing
-            float easedProgress = Mathf.SmoothStep(0f, 1f, progress);
-            transform.position = Vector3.Lerp(startPosition, targetPosition, easedProgress);
-            
-            yield return null;
-        }
-        
-        transform.position = targetPosition;
-        IsMoving = false;
-        onComplete?.Invoke();
-    }
-    
+  
     /// <summary>
     /// Set the grid position of this tile
     /// </summary>

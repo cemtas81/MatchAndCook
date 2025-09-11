@@ -135,8 +135,8 @@ public class GameManager : MonoBehaviour
             gameState = GameState.Won;
             OnGameStateChanged?.Invoke(gameState);
             
-            if (gridManager != null)
-                gridManager.SetInputEnabled(false);
+            //if (gridManager != null)
+            //    gridManager.SetInputEnabled(false);
                 
             Debug.Log("You Win! Target score reached!");
             
@@ -149,8 +149,8 @@ public class GameManager : MonoBehaviour
             gameState = GameState.Lost;
             OnGameStateChanged?.Invoke(gameState);
             
-            if (gridManager != null)
-                gridManager.SetInputEnabled(false);
+            //if (gridManager != null)
+            //    gridManager.SetInputEnabled(false);
                 
             Debug.Log("Game Over! No more moves remaining.");
             
@@ -200,8 +200,8 @@ public class GameManager : MonoBehaviour
             gameState = GameState.Paused;
             OnGameStateChanged?.Invoke(gameState);
             
-            if (gridManager != null)
-                gridManager.SetInputEnabled(false);
+            //if (gridManager != null)
+            //    gridManager.SetInputEnabled(false);
                 
             Time.timeScale = 0f;
             Debug.Log("Game paused");
@@ -218,8 +218,8 @@ public class GameManager : MonoBehaviour
             gameState = GameState.Playing;
             OnGameStateChanged?.Invoke(gameState);
             
-            if (gridManager != null)
-                gridManager.SetInputEnabled(true);
+            //if (gridManager != null)
+            //    gridManager.SetInputEnabled(true);
                 
             Time.timeScale = 1f;
             Debug.Log("Game resumed");

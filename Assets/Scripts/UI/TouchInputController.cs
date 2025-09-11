@@ -1,3 +1,4 @@
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -151,7 +152,7 @@ public class TouchInputController : MonoBehaviour
         selectedTile = tile;
         ApplySelectionEffect(tile, true);
         
-        Debug.Log($"Selected tile at ({tile.gridX}, {tile.gridY})");
+        //Debug.Log($"Selected tile at ({tile.gridX}, {tile.gridY})");
     }
     
     /// <summary>
@@ -183,43 +184,29 @@ public class TouchInputController : MonoBehaviour
             // Invalid swap - provide feedback
             if (selectedTile != null)
             {
-                StartCoroutine(InvalidSwapFeedback(selectedTile));
+                InvalidSwapFeedback(selectedTile); // StartCoroutine kaldýrýldý
             }
         }
     }
-    
+
     /// <summary>
     /// Apply visual selection effect to tile
     /// </summary>
     private void ApplySelectionEffect(Tile tile, bool selected)
     {
         if (tile == null) return;
-        
-        Transform tileTransform = tile.transform;
-        
+        Transform t = tile.transform;
+
+        // DOTween ile scale animasyonu
         if (selected)
         {
-            tileTransform.localScale = Vector3.one * touchScaleEffect;
-            
-            // Add slight glow effect by adjusting sprite color
-            SpriteRenderer sr = tile.GetComponent<SpriteRenderer>();
-            if (sr != null)
-            {
-                sr.color = Color.white; // Brighten selected tile
-            }
+            t.DOScale(Vector3.one * touchScaleEffect, 0.2f)
+             .SetEase(Ease.OutBack);
         }
         else
         {
-            tileTransform.localScale = Vector3.one;
-            
-            // Restore original color based on tile type
-            SpriteRenderer sr = tile.GetComponent<SpriteRenderer>();
-            if (sr != null)
-            {
-                // This would typically restore the tile's original color
-                // For now, just use white as base
-                sr.color = Color.white;
-            }
+            t.DOScale(Vector3.one, 0.15f)
+             .SetEase(Ease.InBack);
         }
     }
 
@@ -301,31 +288,15 @@ public class TouchInputController : MonoBehaviour
         
         return (deltaX == 1 && deltaY == 0) || (deltaX == 0 && deltaY == 1);
     }
-    
+
     /// <summary>
     /// Provide feedback for invalid swap attempt
     /// </summary>
-    private System.Collections.IEnumerator InvalidSwapFeedback(Tile tile)
+    private void InvalidSwapFeedback(Tile tile)
     {
-        // Quick shake effect
-        Vector3 originalPosition = tile.transform.position;
-        float shakeAmount = 0.1f;
-        float shakeDuration = 0.2f;
-        float elapsed = 0f;
-        
-        while (elapsed < shakeDuration)
-        {
-            float x = originalPosition.x + Random.Range(-shakeAmount, shakeAmount);
-            float y = originalPosition.y + Random.Range(-shakeAmount, shakeAmount);
-            tile.transform.position = new Vector3(x, y, originalPosition.z);
-            
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-        
-        tile.transform.position = originalPosition;
+        ShakeTile(tile);
     }
-    
+
     /// <summary>
     /// Enable or disable touch input
     /// </summary>
@@ -347,4 +318,26 @@ public class TouchInputController : MonoBehaviour
     {
         return selectedTile;
     }
+    private void ShakeTile(Tile tile)
+    {
+        if (tile == null) return;
+        
+        // Mevcut tüm shake animasyonlarýný durdur
+        DOTween.Kill(tile.transform, false);
+        
+        // Karonun grid pozisyonuna göre dünya pozisyonunu al
+        Vector3 originalPosition = gridManager.GetWorldPosition(tile.gridX, tile.gridY);
+        
+        // Karoyu orijinal pozisyonuna yerleþtir (kayma olmuþsa düzelt)
+        tile.transform.position = originalPosition;
+        
+        // Basit ve güvenli bir shake animasyonu
+        tile.transform.DOShakePosition(0.2f, 0.1f, 6, 90, false)
+            .SetTarget(tile.transform)
+            .OnComplete(() => {
+                // Animasyon sonunda orijinal pozisyona döndür
+                tile.transform.position = originalPosition;
+            });
+    }
+
 }
