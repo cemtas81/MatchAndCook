@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Handles mobile-optimized touch input for the match-3 game.
@@ -51,6 +52,9 @@ public class TouchInputController : MonoBehaviour
     {
         // Check if input is locked during animations
         if (gridManager != null && gridManager.IsInputLocked()) return;
+        
+        // Don't handle input if touching UI elements
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
         
         // Use Unity's Input system that works for both touch and mouse
         if (Input.GetMouseButtonDown(0))
@@ -136,16 +140,7 @@ public class TouchInputController : MonoBehaviour
     private void EndTouch(Vector2 screenPosition)
     {
         isTouching = false;
-        
-        // If we didn't perform a swipe, handle as tap
-        Vector2 touchDelta = screenPosition - touchStartPos;
-        if (touchDelta.magnitude < swipeThreshold)
-        {
-            Vector3 worldPoint = ScreenToWorldPoint(screenPosition);
-            Tile touchedTile = GetTileAtPosition(worldPoint);
-            
-            // Handle tap logic is already done in StartTouch
-        }
+        // Touch end logic is already handled in StartTouch and UpdateTouch
     }
     
     /// <summary>
