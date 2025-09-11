@@ -222,22 +222,25 @@ public class TouchInputController : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Convert screen position to world position
     /// </summary>
     private Vector3 ScreenToWorldPoint(Vector2 screenPosition)
     {
-        Vector3 worldPoint = mainCamera.ScreenToWorldPoint(screenPosition);
-        worldPoint.z = 0; // Ensure 2D positioning
+        // Z ekseni, kameradan bakýlan düzleme olan uzaklýk (2D için genelde 0)
+        Vector3 screenPoint = new Vector3(screenPosition.x, screenPosition.y, Mathf.Abs(mainCamera.transform.position.z));
+        Vector3 worldPoint = mainCamera.ScreenToWorldPoint(screenPoint);
+        worldPoint.z = 0; // 2D düzlemde çalýþýyoruz
         return worldPoint;
     }
-    
+
     /// <summary>
     /// Get tile at world position using raycast
     /// </summary>
     private Tile GetTileAtPosition(Vector3 worldPosition)
     {
+        Debug.Log("Raycast at: " + worldPosition);
         RaycastHit2D hit = Physics2D.Raycast(worldPosition, Vector2.zero, Mathf.Infinity, touchLayerMask);
         
         if (hit.collider != null)
