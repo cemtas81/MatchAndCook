@@ -17,14 +17,9 @@ public class GridManager : MonoBehaviour
     [SerializeField] private GameObject tilePrefab;
     [SerializeField] private Transform gridParent;
     
-    [Header("Input")]
-    [SerializeField] private LayerMask tileLayerMask = 1;
-    
     // Grid data
     private Tile[,] grid;
-    private Camera mainCamera;
-    private bool isInputEnabled = true;
-    private Tile selectedTile;
+    private bool isSwapping = false;
     
     // Events
     public System.Action<int> OnTilesCleared;
@@ -32,16 +27,7 @@ public class GridManager : MonoBehaviour
     
     void Start()
     {
-        mainCamera = Camera.main;
         InitializeGrid();
-    }
-    
-    void Update()
-    {
-        if (isInputEnabled)
-        {
-            HandleInput();
-        }
     }
     
     /// <summary>
@@ -183,75 +169,24 @@ public class GridManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Handle touch/mouse input for tile selection and swapping
+    /// Public method to attempt tile swap - called from TouchInputController
     /// </summary>
-    private void HandleInput()
+    public void TrySwapTiles(Tile tile1, Tile tile2)
     {
-        if (Input.GetMouseButtonDown(0))
+        if (isSwapping || tile1 == null || tile2 == null) return;
+        
+        if (AreAdjacent(tile1, tile2))
         {
-            Vector3 worldPoint = mainCamera.ScreenToWorldPoint(Input.mousePosition);
-            worldPoint.z = 0;
-            
-            RaycastHit2D hit = Physics2D.Raycast(worldPoint, Vector2.zero, Mathf.Infinity, tileLayerMask);
-            
-            if (hit.collider != null)
-            {
-                Tile clickedTile = hit.collider.GetComponent<Tile>();
-                if (clickedTile != null)
-                {
-                    HandleTileClick(clickedTile);
-                }
-            }
+            StartCoroutine(TrySwapTilesCoroutine(tile1, tile2));
         }
     }
     
     /// <summary>
-    /// Handle tile click/tap for selection and swapping
+    /// Check if input is currently locked (during animations)
     /// </summary>
-    private void HandleTileClick(Tile clickedTile)
+    public bool IsInputLocked()
     {
-        if (selectedTile == null)
-        {
-            // First tile selection
-            selectedTile = clickedTile;
-            HighlightTile(selectedTile, true);
-        }
-        else if (selectedTile == clickedTile)
-        {
-            // Deselect current tile
-            HighlightTile(selectedTile, false);
-            selectedTile = null;
-        }
-        else if (AreAdjacent(selectedTile, clickedTile))
-        {
-            // Attempt to swap adjacent tiles
-            HighlightTile(selectedTile, false);
-            StartCoroutine(TrySwapTiles(selectedTile, clickedTile));
-            selectedTile = null;
-        }
-        else
-        {
-            // Select new tile
-            HighlightTile(selectedTile, false);
-            selectedTile = clickedTile;
-            HighlightTile(selectedTile, true);
-        }
-    }
-    
-    /// <summary>
-    /// Highlight a tile to show it's selected
-    /// </summary>
-    private void HighlightTile(Tile tile, bool highlight)
-    {
-        if (tile != null)
-        {
-            SpriteRenderer sr = tile.GetComponent<SpriteRenderer>();
-            if (sr != null)
-            {
-                sr.color = highlight ? Color.white : sr.color;
-                transform.localScale = highlight ? Vector3.one * 1.1f : Vector3.one;
-            }
-        }
+        return isSwapping;
     }
     
     /// <summary>
@@ -268,9 +203,9 @@ public class GridManager : MonoBehaviour
     /// <summary>
     /// Try to swap two tiles and check for matches
     /// </summary>
-    private IEnumerator TrySwapTiles(Tile tile1, Tile tile2)
+    private IEnumerator TrySwapTilesCoroutine(Tile tile1, Tile tile2)
     {
-        isInputEnabled = false;
+        isSwapping = true;
         
         // Swap positions in grid
         Vector3 tile1Pos = tile1.transform.position;
@@ -316,7 +251,7 @@ public class GridManager : MonoBehaviour
             yield return new WaitForSeconds(0.3f);
         }
         
-        isInputEnabled = true;
+        isSwapping = false;
     }
     
     /// <summary>
@@ -520,11 +455,4 @@ public class GridManager : MonoBehaviour
         return grid;
     }
     
-    /// <summary>
-    /// Enable or disable input
-    /// </summary>
-    public void SetInputEnabled(bool enabled)
-    {
-        isInputEnabled = enabled;
-    }
 }
