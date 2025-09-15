@@ -45,7 +45,7 @@ public class UIManager : MonoBehaviour
     /// </summary>
     private void InitializeUI()
     {
-        gameManager = FindObjectOfType<GameManager>();
+        gameManager = FindFirstObjectByType<GameManager>();
         
         // Hide panels initially
         if (gameEndPanel != null)
@@ -58,7 +58,18 @@ public class UIManager : MonoBehaviour
         if (progressBar != null)
         {
             progressBar.minValue = 0f;
-            progressBar.maxValue = 1f;
+            
+            // Eðer GameManager bulunduysa, max deðeri hedef skora ayarla
+            if (gameManager != null)
+            {
+                progressBar.maxValue = gameManager.TargetScore;
+            }
+            else
+            {
+                // GameManager bulunamadýysa varsayýlan bir deðer kullan
+                progressBar.maxValue = 1000f; 
+            }
+            
             progressBar.value = 0f;
         }
     }
@@ -157,28 +168,35 @@ public class UIManager : MonoBehaviour
     {
         if (progressBar != null)
         {
-            float progress = (float)currentScore / targetScore;
-            progressBar.value = Mathf.Clamp01(progress);
+            // Slider'ýn min ve max deðerlerini ayarla
+            progressBar.minValue = 0;
+            progressBar.maxValue = targetScore;
+            
+            // Slider deðerini doðrudan currentScore olarak ayarla
+            progressBar.value = currentScore;
+            
+            // Renk deðiþimi için normalize edilmiþ ilerleme deðeri hesapla
+            float normalizedProgress = targetScore > 0 ? (float)currentScore / targetScore : 0;
             
             // Change color based on progress
             Image fillImage = progressBar.fillRect?.GetComponent<Image>();
             if (fillImage != null)
             {
-                if (progress >= 1f)
+                if (normalizedProgress >= 1f)
                 {
                     fillImage.color = winColor;
                 }
-                else if (progress >= 0.75f)
+                else if (normalizedProgress >= 0.75f)
                 {
-                    fillImage.color = Color.Lerp(Color.yellow, winColor, (progress - 0.75f) * 4f);
+                    fillImage.color = Color.Lerp(Color.yellow, winColor, (normalizedProgress - 0.75f) * 4f);
                 }
-                else if (progress >= 0.5f)
+                else if (normalizedProgress >= 0.5f)
                 {
                     fillImage.color = Color.yellow;
                 }
                 else
                 {
-                    fillImage.color = Color.white;
+                    fillImage.color = Color.yellow;
                 }
             }
         }
