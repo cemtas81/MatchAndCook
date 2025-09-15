@@ -84,7 +84,21 @@ public class GameManager : MonoBehaviour
         int totalPoints = basePoints + bonusPoints;
         
         AddScore(totalPoints);
+        
+        // Kaç tane karonun temizlendiðini kaydet
+        if (scoreManager != null)
+        {
+            scoreManager.RecordTilesCleared(tilesCleared);
+        }
+        
+        // Combo arttýr ve kaydet
         currentCombo++;
+        
+        // ScoreManager'a yeni combo bilgisini gönder
+        if (scoreManager != null)
+        {
+            scoreManager.RecordCombo(currentCombo);
+        }
         
         Debug.Log($"Cleared {tilesCleared} tiles! +{totalPoints} points (Combo x{currentCombo})");
     }

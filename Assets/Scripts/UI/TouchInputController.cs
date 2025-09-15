@@ -31,10 +31,10 @@ public class TouchInputController : MonoBehaviour
         mainCamera = Camera.main;
         if (mainCamera == null)
         {
-            mainCamera = FindObjectOfType<Camera>();
+            mainCamera = FindFirstObjectByType<Camera>();
         }
         
-        gridManager = FindObjectOfType<GridManager>();
+        gridManager = FindFirstObjectByType<GridManager>();
         if (gridManager == null)
         {
             Debug.LogError("TouchInputController: GridManager not found!");
