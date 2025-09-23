@@ -62,4 +62,3 @@ The foundation supports easy addition of:
 - Progressive difficulty levels
 - Social features and leaderboards
 
-Built with the principle: **Less is better, no overkill** - focused on core gameplay that's fun and expandable.
