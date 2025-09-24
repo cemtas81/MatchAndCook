@@ -45,20 +45,20 @@ public class PowerUpManager : MonoBehaviour
     
     public enum PowerUpType
     {
-        Bomb,           // Destroys 3x3 area
-        IngredientSelector, // Converts random tiles to needed ingredient
-        TimeAdd,        // Adds extra time to customer orders
-        Rainbow,        // Matches with any tile type
-        DoubleScore,    // Doubles points for next few moves
-        ExtraMove       // Adds extra moves
+        Bomb,               // Pizza Oven Bomb - destroys 3x3 area of ingredients
+        IngredientSelector, // Magic Spatula - converts random tiles to needed ingredient
+        TimeAdd,            // Extra Time - adds extra time to customer orders
+        Rainbow,            // Rainbow Ingredient - matches with any ingredient type
+        DoubleScore,        // Chef's Special - doubles points for next few moves
+        ExtraMove           // Extra Energy - adds extra moves to current level
     }
     
     public enum SpecialTileType
     {
-        Bomb,
-        Rainbow,
-        Lightning,  // Destroys entire row/column
-        Star        // Destroys all tiles of one type
+        Bomb,           // Pizza Oven Bomb - destroys 3x3 area
+        Rainbow,        // Magic Ingredient - matches with any ingredient
+        Lightning,      // Lightning Knife - destroys entire row/column
+        Star            // Star Chef Special - destroys all tiles of one ingredient type
     }
     
     void Start()
@@ -246,11 +246,11 @@ public class PowerUpManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Execute bomb power-up effect
+    /// Execute pizza oven bomb power-up effect - destroys 3x3 area of ingredients
     /// </summary>
     private void ExecuteBombEffect()
     {
-        // Create explosion effect at center of screen
+        // Create pizza oven explosion effect at center of screen
         Vector3 screenCenter = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width / 2, Screen.height / 2, 10));
         
         if (bombEffectPrefab != null && effectParent != null)
@@ -259,35 +259,66 @@ public class PowerUpManager : MonoBehaviour
             Destroy(effect, 2f);
         }
         
-        // In a real implementation, this would destroy tiles in a 3x3 area around a selected position
-        Debug.Log("Bomb power-up used! Destroying tiles in 3x3 area.");
+        // In a real implementation, this would destroy pizza ingredients in a 3x3 area around a selected position
+        Debug.Log("Pizza Oven Bomb used! Clearing ingredients in 3x3 area.");
     }
     
     /// <summary>
-    /// Execute ingredient selector power-up effect
+    /// Execute magic spatula power-up effect - converts random tiles to needed pizza ingredients
     /// </summary>
     private void ExecuteIngredientSelectorEffect()
     {
-        // In a real implementation, this would convert random tiles to needed ingredients
-        Debug.Log("Ingredient Selector power-up used! Converting tiles to needed ingredients.");
+        PizzaOrderManager pizzaOrderManager = FindFirstObjectByType<PizzaOrderManager>();
+        if (pizzaOrderManager != null && pizzaOrderManager.IsOrderActive)
+        {
+            // Get required ingredients for current pizza order
+            List<Tile.TileType> requiredIngredients = pizzaOrderManager.GetRequiredIngredientTypes();
+            
+            if (requiredIngredients.Count > 0)
+            {
+                // In a real implementation, this would convert 3-5 random tiles on the grid
+                // to the most needed ingredient type
+                Tile.TileType neededIngredient = requiredIngredients[Random.Range(0, requiredIngredients.Count)];
+                Debug.Log($"Magic Spatula used! Converting tiles to {neededIngredient} for current pizza order.");
+            }
+            else
+            {
+                Debug.Log("Magic Spatula used! No specific ingredients needed right now.");
+            }
+        }
+        else
+        {
+            // Fallback behavior
+            Debug.Log("Magic Spatula used! Converting random tiles to helpful ingredients.");
+        }
     }
     
     /// <summary>
-    /// Execute time add power-up effect
+    /// Execute time add power-up effect - adds extra time to current pizza order
     /// </summary>
     private void ExecuteTimeAddEffect()
     {
-        CustomerManager customerManager = FindFirstObjectByType<CustomerManager>();
-        if (customerManager != null)
+        PizzaOrderManager pizzaOrderManager = FindFirstObjectByType<PizzaOrderManager>();
+        if (pizzaOrderManager != null && pizzaOrderManager.IsOrderActive)
         {
-            // Add time to all active orders
-            foreach (var order in customerManager.ActiveOrders)
-            {
-                order.remainingTime += 15f; // Add 15 seconds
-            }
+            // Add extra time to current pizza order
+            pizzaOrderManager.AddExtraTime(20f); // Add 20 seconds
+            Debug.Log("Extra Time power-up used! Added 20 seconds to current pizza order.");
         }
-        
-        Debug.Log("Time Add power-up used! Added 15 seconds to all customer orders.");
+        else
+        {
+            // Fallback to old customer manager system if pizza system not available
+            CustomerManager customerManager = FindFirstObjectByType<CustomerManager>();
+            if (customerManager != null)
+            {
+                // Add time to all active orders
+                foreach (var order in customerManager.ActiveOrders)
+                {
+                    order.remainingTime += 15f; // Add 15 seconds
+                }
+            }
+            Debug.Log("Time Add power-up used! Extended order time.");
+        }
     }
     
     /// <summary>

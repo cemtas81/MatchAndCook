@@ -17,6 +17,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GridManager gridManager;
     [SerializeField] private ScoreManager scoreManager;
     [SerializeField] private UIManager uiManager;
+    [SerializeField] private PizzaOrderManager pizzaOrderManager; // Pizza order system integration
     
     // Game state
     private int currentScore = 0;
@@ -49,7 +50,7 @@ public class GameManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Initialize the game with starting values
+    /// Initialize the game with starting values and pizza order system
     /// </summary>
     private void InitializeGame()
     {
@@ -58,6 +59,12 @@ public class GameManager : MonoBehaviour
         gameState = GameState.Playing;
         currentCombo = 0;
         
+        // Find pizza order manager if not assigned
+        if (pizzaOrderManager == null)
+        {
+            pizzaOrderManager = FindFirstObjectByType<PizzaOrderManager>();
+        }
+        
         // Subscribe to grid events
         if (gridManager != null)
         {
@@ -65,10 +72,17 @@ public class GameManager : MonoBehaviour
             gridManager.OnGridRefilled += OnGridRefilled;
         }
         
+        // Subscribe to pizza order events
+        if (pizzaOrderManager != null)
+        {
+            pizzaOrderManager.OnOrderCompleted += OnPizzaOrderCompleted;
+            pizzaOrderManager.OnLevelChanged += OnLevelChanged;
+        }
+        
         // Update UI
         UpdateUI();
         
-        Debug.Log($"Game started! Target: {targetScore} points in {movesLimit} moves");
+        Debug.Log($"Pizza Match-3 game started! Level: {pizzaOrderManager?.CurrentLevel ?? 1}");
     }
     
     /// <summary>
@@ -85,16 +99,16 @@ public class GameManager : MonoBehaviour
         
         AddScore(totalPoints);
         
-        // Kaç tane karonun temizlendiðini kaydet
+        // Kaï¿½ tane karonun temizlendiï¿½ini kaydet
         if (scoreManager != null)
         {
             scoreManager.RecordTilesCleared(tilesCleared);
         }
         
-        // Combo arttýr ve kaydet
+        // Combo arttï¿½r ve kaydet
         currentCombo++;
         
-        // ScoreManager'a yeni combo bilgisini gönder
+        // ScoreManager'a yeni combo bilgisini gï¿½nder
         if (scoreManager != null)
         {
             scoreManager.RecordCombo(currentCombo);
@@ -124,6 +138,37 @@ public class GameManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Handle pizza order completion and level progression
+    /// </summary>
+    private void OnPizzaOrderCompleted(PizzaOrder order, bool success)
+    {
+        if (success)
+        {
+            // Award bonus points for completing pizza order
+            int orderReward = order.CalculateReward(Time.time);
+            AddScore(orderReward);
+            
+            Debug.Log($"Pizza order completed! {order.customerName} is happy. Bonus: {orderReward} points");
+        }
+        else
+        {
+            Debug.Log($"Pizza order failed! {order.customerName} is disappointed.");
+        }
+    }
+    
+    /// <summary>
+    /// Handle level progression from pizza order system
+    /// </summary>
+    private void OnLevelChanged(int newLevel)
+    {
+        Debug.Log($"Advanced to level {newLevel}!");
+        
+        // Could add level-specific bonuses or difficulty adjustments here
+        // For now, just update UI if needed
+        UpdateUI();
+    }
+    
+    /// <summary>
     /// Add points to the current score
     /// </summary>
     private void AddScore(int points)
@@ -140,33 +185,33 @@ public class GameManager : MonoBehaviour
     
     /// <summary>
     /// Check if the game should end (win or lose conditions)
+    /// Modified for pizza order system - game continues as long as player completes orders
     /// </summary>
     private void CheckGameEnd()
     {
+        // In pizza mode, the game doesn't end based on score or moves
+        // Instead, it continues level by level with pizza orders
+        // Game only ends if player runs out of time on too many orders
+        
+        // For now, keep the traditional win condition as a backup
         if (currentScore >= targetScore)
         {
-            // Player won!
+            // Player reached high score milestone
             gameState = GameState.Won;
             OnGameStateChanged?.Invoke(gameState);
             
-            //if (gridManager != null)
-            //    gridManager.SetInputEnabled(false);
-                
-            Debug.Log("You Win! Target score reached!");
+            Debug.Log("Congratulations! You've reached the target score!");
             
             if (uiManager != null)
                 uiManager.ShowGameEnd(true, currentScore);
         }
         else if (movesRemaining <= 0)
         {
-            // Player lost - no more moves
+            // No more moves - restart the level or show game over
             gameState = GameState.Lost;
             OnGameStateChanged?.Invoke(gameState);
             
-            //if (gridManager != null)
-            //    gridManager.SetInputEnabled(false);
-                
-            Debug.Log("Game Over! No more moves remaining.");
+            Debug.Log("No more moves! Game over.");
             
             if (uiManager != null)
                 uiManager.ShowGameEnd(false, currentScore);
@@ -271,6 +316,13 @@ public class GameManager : MonoBehaviour
         {
             gridManager.OnTilesCleared -= OnTilesCleared;
             gridManager.OnGridRefilled -= OnGridRefilled;
+        }
+        
+        // Unsubscribe from pizza order events
+        if (pizzaOrderManager != null)
+        {
+            pizzaOrderManager.OnOrderCompleted -= OnPizzaOrderCompleted;
+            pizzaOrderManager.OnLevelChanged -= OnLevelChanged;
         }
         
         // Reset time scale
