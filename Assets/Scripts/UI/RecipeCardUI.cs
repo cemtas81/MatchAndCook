@@ -111,7 +111,7 @@ public class RecipeCardUI : MonoBehaviour
             RectTransform rectTransform = recipeCardPanel.GetComponent<RectTransform>();
             if (rectTransform != null)
             {
-                Vector3 hidePosition = rectTransform.anchoredPosition + Vector3.up * 200f;
+                Vector3 hidePosition = rectTransform.anchoredPosition + Vector2.up * 200f;
                 
                 currentTween?.Kill();
                 currentTween = rectTransform.DOAnchorPos(hidePosition, hideAnimationDuration)
