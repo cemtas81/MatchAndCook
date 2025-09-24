@@ -64,6 +64,13 @@ public class PizzaOrderManager : MonoBehaviour
         gridManager = FindFirstObjectByType<GridManager>();
         gameManager = FindFirstObjectByType<GameManager>();
         
+        // If no orders are configured, use sample orders for testing
+        if (availablePizzaOrders.Count == 0)
+        {
+            availablePizzaOrders = SamplePizzaOrders.GetAllSampleOrders();
+            Debug.Log("Using sample pizza orders for demonstration");
+        }
+        
         // Subscribe to tile clearing events to collect ingredients
         if (gridManager != null)
         {
@@ -380,6 +387,18 @@ public class PizzaOrderManager : MonoBehaviour
         if (order != null && !availablePizzaOrders.Contains(order))
         {
             availablePizzaOrders.Add(order);
+        }
+    }
+    
+    /// <summary>
+    /// Add extra time to the current pizza order (for power-up integration)
+    /// </summary>
+    public void AddExtraTime(float extraSeconds)
+    {
+        if (isOrderActive && !orderCompleted)
+        {
+            remainingTime += extraSeconds;
+            Debug.Log($"Added {extraSeconds} seconds to current pizza order. New time: {remainingTime:F1}s");
         }
     }
     
