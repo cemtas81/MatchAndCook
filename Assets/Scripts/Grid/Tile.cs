@@ -19,20 +19,23 @@ public class Tile : MonoBehaviour
     [SerializeField] private float swapDuration = 0.3f;
     [SerializeField] private float fallDuration = 0.5f;
     
-    // Tile types for the cooking theme
+    // Pizza ingredient tile types
     public enum TileType
     {
-        Red,      // Tomatoes, meat
-        Blue,     // Water, ice
-        Green,    // Vegetables, herbs
-        Yellow,   // Grains, pasta
-        Purple,   // Special ingredients
+        // Basic pizza ingredients
+        Tomato,     // Red tomato sauce and fresh tomatoes
+        Cheese,     // Yellow cheese (mozzarella, cheddar)
+        Pepperoni,  // Red/orange pepperoni slices
+        Mushroom,   // Brown mushrooms
+        Pepper,     // Green bell peppers
+        Onion,      // Purple/white onions
+        Olives,     // Black/green olives
         
-        // Special tile types
-        Bomb,     // Destroys surrounding tiles
-        Rainbow,  // Matches with any type
-        Lightning, // Destroys row/column
-        Star      // Destroys all of one type
+        // Special tile types (power-ups)
+        Bomb,       // Destroys 3x3 area around it
+        Rainbow,    // Matches with any ingredient type
+        Lightning,  // Destroys entire row or column
+        Star        // Destroys all tiles of one ingredient type
     }
     
     // Properties
@@ -66,25 +69,29 @@ public class Tile : MonoBehaviour
     }
     
     /// <summary>
-    /// Get the color for a specific tile type (placeholder system)
+    /// Get the color for a specific pizza ingredient tile type (placeholder visual system)
+    /// In production, these would be replaced with actual sprite assets
     /// </summary>
     private Color GetTileColor(TileType type)
     {
         switch (type)
         {
-            case TileType.Red:    return Color.red;
-            case TileType.Blue:   return Color.blue;
-            case TileType.Green:  return Color.green;
-            case TileType.Yellow: return Color.yellow;
-            case TileType.Purple: return new Color(0.5f, 0f, 0.5f); // Purple
+            // Pizza ingredient colors for visual identification
+            case TileType.Tomato:    return new Color(0.8f, 0.2f, 0.2f); // Deep red for tomatoes
+            case TileType.Cheese:    return new Color(1f, 0.9f, 0.3f);   // Golden yellow for cheese
+            case TileType.Pepperoni: return new Color(0.7f, 0.3f, 0.1f); // Dark red-orange for pepperoni
+            case TileType.Mushroom:  return new Color(0.6f, 0.4f, 0.2f); // Brown for mushrooms
+            case TileType.Pepper:    return new Color(0.2f, 0.7f, 0.2f); // Bright green for peppers
+            case TileType.Onion:     return new Color(0.9f, 0.8f, 0.9f); // Light purple-white for onions
+            case TileType.Olives:    return new Color(0.1f, 0.1f, 0.2f); // Dark purple-black for olives
             
-            // Special tiles with distinct colors
-            case TileType.Bomb:     return Color.black;
-            case TileType.Rainbow:  return Color.white;
-            case TileType.Lightning: return Color.cyan;
-            case TileType.Star:     return Color.magenta;
+            // Special power-up tiles with distinct colors
+            case TileType.Bomb:      return new Color(0.2f, 0.2f, 0.2f); // Dark gray for bomb
+            case TileType.Rainbow:   return Color.white;                  // White with rainbow effect
+            case TileType.Lightning: return new Color(0.9f, 0.9f, 0.1f); // Bright yellow for lightning
+            case TileType.Star:      return new Color(1f, 0.6f, 0f);     // Orange for star power-up
             
-            default:              return Color.white;
+            default: return Color.white;
         }
     }
 

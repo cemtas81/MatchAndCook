@@ -32,9 +32,15 @@ public class GridManager : MonoBehaviour
     public System.Action<int> OnTilesCleared;
     public System.Action OnGridRefilled;
     
+    // Pizza order integration
+    private PizzaOrderManager pizzaOrderManager;
+    
     void Start()
     {
         InitializeGrid();
+        
+        // Find pizza order manager for ingredient coordination
+        pizzaOrderManager = FindFirstObjectByType<PizzaOrderManager>();
     }
     
     /// <summary>
@@ -87,8 +93,8 @@ public class GridManager : MonoBehaviour
             collider.size = Vector2.one;
         }
         
-        // Random tile type
-        Tile.TileType randomType = (Tile.TileType)Random.Range(0, System.Enum.GetValues(typeof(Tile.TileType)).Length);
+        // Random tile type prioritizing pizza order ingredients
+        Tile.TileType randomType = GetRandomPizzaIngredient();
         tile.Initialize(randomType, x, y);
         
         grid[x, y] = tile;
@@ -142,14 +148,17 @@ public class GridManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Get a random tile type that won't create matches at this position
+    /// Get a random pizza ingredient type that won't create matches at this position
     /// </summary>
     private Tile.TileType GetSafeRandomType(int x, int y)
     {
         List<Tile.TileType> availableTypes = new List<Tile.TileType>();
         
+        // Only consider pizza ingredients (not special tiles) for safe placement
         foreach (Tile.TileType type in System.Enum.GetValues(typeof(Tile.TileType)))
         {
+            if (Tile.IsSpecial(type)) continue; // Skip special tiles for regular placement
+            
             // Temporarily set this type and check for matches
             Tile.TileType originalType = grid[x, y].Type;
             grid[x, y].Initialize(type, x, y);
@@ -165,11 +174,70 @@ public class GridManager : MonoBehaviour
         
         if (availableTypes.Count > 0)
         {
+            // Prioritize current order ingredients if available
+            if (pizzaOrderManager != null && pizzaOrderManager.IsOrderActive)
+            {
+                List<Tile.TileType> requiredTypes = pizzaOrderManager.GetRequiredIngredientTypes();
+                List<Tile.TileType> priorityTypes = new List<Tile.TileType>();
+                
+                foreach (var type in availableTypes)
+                {
+                    if (requiredTypes.Contains(type))
+                    {
+                        priorityTypes.Add(type);
+                    }
+                }
+                
+                if (priorityTypes.Count > 0 && Random.Range(0f, 1f) < 0.7f)
+                {
+                    return priorityTypes[Random.Range(0, priorityTypes.Count)];
+                }
+            }
+            
             return availableTypes[Random.Range(0, availableTypes.Count)];
         }
         
-        // Fallback to random type
-        return (Tile.TileType)Random.Range(0, System.Enum.GetValues(typeof(Tile.TileType)).Length);
+        // Fallback to any pizza ingredient
+        return GetRandomPizzaIngredient();
+    }
+    
+    /// <summary>
+    /// Get a random pizza ingredient type, prioritizing current order requirements
+    /// </summary>
+    private Tile.TileType GetRandomPizzaIngredient()
+    {
+        // Get required ingredients from current pizza order
+        List<Tile.TileType> requiredIngredients = null;
+        if (pizzaOrderManager != null && pizzaOrderManager.IsOrderActive)
+        {
+            requiredIngredients = pizzaOrderManager.GetRequiredIngredientTypes();
+        }
+        
+        List<Tile.TileType> availableIngredients = new List<Tile.TileType>();
+        
+        // Add all basic pizza ingredients (excluding special tiles)
+        foreach (Tile.TileType ingredient in System.Enum.GetValues(typeof(Tile.TileType)))
+        {
+            if (!Tile.IsSpecial(ingredient))
+            {
+                availableIngredients.Add(ingredient);
+            }
+        }
+        
+        // If we have a current order, prioritize its ingredients (80% chance)
+        if (requiredIngredients != null && requiredIngredients.Count > 0 && Random.Range(0f, 1f) < 0.8f)
+        {
+            return requiredIngredients[Random.Range(0, requiredIngredients.Count)];
+        }
+        
+        // Otherwise, return any pizza ingredient
+        if (availableIngredients.Count > 0)
+        {
+            return availableIngredients[Random.Range(0, availableIngredients.Count)];
+        }
+        
+        // Fallback to Tomato if something goes wrong
+        return Tile.TileType.Tomato;
     }
     
     /// <summary>
