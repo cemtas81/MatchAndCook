@@ -26,12 +26,20 @@ public class Tile : MonoBehaviour
         Blue,     // Water, ice
         Green,    // Vegetables, herbs
         Yellow,   // Grains, pasta
-        Purple    // Special ingredients
+        Purple,   // Special ingredients
+        
+        // Special tile types
+        Bomb,     // Destroys surrounding tiles
+        Rainbow,  // Matches with any type
+        Lightning, // Destroys row/column
+        Star      // Destroys all of one type
     }
     
     // Properties
     public TileType Type => tileType;
     public bool IsMoving { get; private set; }
+    public bool IsSpecialTile => IsSpecial(tileType);
+    public bool IsIngredient => !IsSpecial(tileType);
     
     /// <summary>
     /// Initialize the tile with a specific type and grid position
@@ -69,6 +77,13 @@ public class Tile : MonoBehaviour
             case TileType.Green:  return Color.green;
             case TileType.Yellow: return Color.yellow;
             case TileType.Purple: return new Color(0.5f, 0f, 0.5f); // Purple
+            
+            // Special tiles with distinct colors
+            case TileType.Bomb:     return Color.black;
+            case TileType.Rainbow:  return Color.white;
+            case TileType.Lightning: return Color.cyan;
+            case TileType.Star:     return Color.magenta;
+            
             default:              return Color.white;
         }
     }
@@ -117,6 +132,117 @@ public class Tile : MonoBehaviour
     /// </summary>
     public bool CanMatchWith(Tile other)
     {
-        return other != null && other.tileType == this.tileType;
+        if (other == null) return false;
+        
+        // Rainbow tiles match with anything
+        if (tileType == TileType.Rainbow || other.tileType == TileType.Rainbow)
+            return true;
+            
+        // Normal matching
+        return other.tileType == this.tileType;
+    }
+    
+    /// <summary>
+    /// Check if a tile type is a special tile
+    /// </summary>
+    public static bool IsSpecial(TileType type)
+    {
+        return type == TileType.Bomb || type == TileType.Rainbow || 
+               type == TileType.Lightning || type == TileType.Star;
+    }
+    
+    /// <summary>
+    /// Convert to special tile type
+    /// </summary>
+    public void ConvertToSpecialTile(TileType specialType)
+    {
+        if (!IsSpecial(specialType)) return;
+        
+        tileType = specialType;
+        UpdateVisual();
+        
+        // Add special visual effect
+        PlaySpecialCreationEffect();
+    }
+    
+    /// <summary>
+    /// Play special tile creation effect
+    /// </summary>
+    private void PlaySpecialCreationEffect()
+    {
+        // Pulse effect for special tile creation
+        transform.DOPunchScale(Vector3.one * 0.3f, 0.5f, 8)
+            .SetEase(Ease.OutBounce);
+            
+        // Color flash
+        if (spriteRenderer != null)
+        {
+            Color originalColor = spriteRenderer.color;
+            spriteRenderer.DOColor(Color.white, 0.1f)
+                .SetLoops(3, LoopType.Yoyo)
+                .OnComplete(() => spriteRenderer.color = originalColor);
+        }
+    }
+    
+    /// <summary>
+    /// Activate special tile effect
+    /// </summary>
+    public void ActivateSpecialEffect()
+    {
+        switch (tileType)
+        {
+            case TileType.Bomb:
+                PlayBombEffect();
+                break;
+            case TileType.Rainbow:
+                PlayRainbowEffect();
+                break;
+            case TileType.Lightning:
+                PlayLightningEffect();
+                break;
+            case TileType.Star:
+                PlayStarEffect();
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// Play bomb tile effect
+    /// </summary>
+    private void PlayBombEffect()
+    {
+        transform.DOScale(Vector3.one * 1.5f, 0.2f)
+            .OnComplete(() => transform.DOScale(Vector3.zero, 0.1f));
+    }
+    
+    /// <summary>
+    /// Play rainbow tile effect
+    /// </summary>
+    private void PlayRainbowEffect()
+    {
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.DOColor(Color.red, 0.1f)
+                .SetLoops(6, LoopType.Yoyo)
+                .OnComplete(() => transform.DOScale(Vector3.zero, 0.2f));
+        }
+    }
+    
+    /// <summary>
+    /// Play lightning tile effect
+    /// </summary>
+    private void PlayLightningEffect()
+    {
+        transform.DOShakePosition(0.3f, 5f, 20)
+            .OnComplete(() => transform.DOScale(Vector3.zero, 0.1f));
+    }
+    
+    /// <summary>
+    /// Play star tile effect
+    /// </summary>
+    private void PlayStarEffect()
+    {
+        transform.DORotate(new Vector3(0, 0, 360), 0.5f, RotateMode.LocalAxisAdd)
+            .OnComplete(() => transform.DOScale(Vector3.zero, 0.2f));
     }
 }
