@@ -45,7 +45,7 @@ public class MobileOptimization : MonoBehaviour
             if (enablePerformanceMode)
             {
                 QualitySettings.pixelLightCount = 1;
-                QualitySettings.masterTextureLimit = 1; // Reduce texture quality
+                QualitySettings.globalTextureMipmapLimit = 1; // Reduce texture quality
                 QualitySettings.particleRaycastBudget = 64;
             }
         }

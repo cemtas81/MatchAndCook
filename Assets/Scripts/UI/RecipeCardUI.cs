@@ -320,7 +320,7 @@ public class IngredientItemUI : MonoBehaviour
     private IngredientRequirement requirement;
     private int currentProgress;
     
-    public Tile.TileType IngredientType => requirement?.ingredientType ?? Tile.TileType.Red;
+    public Tile.TileType IngredientType => requirement?.ingredientType ?? Tile.TileType.Tomato;
     
     /// <summary>
     /// Initialize ingredient item with requirement data
