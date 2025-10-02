@@ -85,6 +85,18 @@ public class TouchInputController : MonoBehaviour
         
         if (touchedTile != null)
         {
+            // POWER-UP SYSTEM: Check if touched tile is a power-up
+            if (touchedTile.IsSpecialTile)
+            {
+                // Activate power-up directly
+                if (gridManager != null)
+                {
+                    gridManager.ActivatePowerUpTile(touchedTile);
+                }
+                DeselectTile();
+                return;
+            }
+            
             if (selectedTile == null)
             {
                 // First tile selection
@@ -184,7 +196,7 @@ public class TouchInputController : MonoBehaviour
             // Invalid swap - provide feedback
             if (selectedTile != null)
             {
-                InvalidSwapFeedback(selectedTile); // StartCoroutine kaldýrýldý
+                InvalidSwapFeedback(selectedTile); // StartCoroutine kaldï¿½rï¿½ldï¿½
             }
         }
     }
@@ -322,20 +334,20 @@ public class TouchInputController : MonoBehaviour
     {
         if (tile == null) return;
         
-        // Mevcut tüm shake animasyonlarýný durdur
+        // Mevcut tï¿½m shake animasyonlarï¿½nï¿½ durdur
         DOTween.Kill(tile.transform, false);
         
-        // Karonun grid pozisyonuna göre dünya pozisyonunu al
+        // Karonun grid pozisyonuna gï¿½re dï¿½nya pozisyonunu al
         Vector3 originalPosition = gridManager.GetWorldPosition(tile.gridX, tile.gridY);
         
-        // Karoyu orijinal pozisyonuna yerleþtir (kayma olmuþsa düzelt)
+        // Karoyu orijinal pozisyonuna yerleï¿½tir (kayma olmuï¿½sa dï¿½zelt)
         tile.transform.position = originalPosition;
         
-        // Basit ve güvenli bir shake animasyonu
+        // Basit ve gï¿½venli bir shake animasyonu
         tile.transform.DOShakePosition(0.2f, 0.1f, 6, 90, false)
             .SetTarget(tile.transform)
             .OnComplete(() => {
-                // Animasyon sonunda orijinal pozisyona döndür
+                // Animasyon sonunda orijinal pozisyona dï¿½ndï¿½r
                 tile.transform.position = originalPosition;
             });
     }
