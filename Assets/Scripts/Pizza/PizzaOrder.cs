@@ -24,6 +24,9 @@ public class PizzaOrder : ScriptableObject
     public int baseReward = 200;
     public int timeBonus = 100; // Bonus for completing quickly
     
+    [Header("Money System")]
+    public int price = 50; // Money earned when completing this order
+    
     [Header("Customer Personality")]
     public float patienceLevel = 1f; // Multiplier for time limit
     public Color customerMoodColor = Color.white;

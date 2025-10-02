@@ -12,6 +12,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI scoreText;
     [SerializeField] private TextMeshProUGUI movesText;
     [SerializeField] private TextMeshProUGUI targetText;
+    [SerializeField] private TextMeshProUGUI moneyText;
     [SerializeField] private Slider progressBar;
     
     [Header("Game End UI")]
@@ -33,11 +34,13 @@ public class UIManager : MonoBehaviour
     
     // References
     private GameManager gameManager;
+    private PizzaOrderManager pizzaOrderManager;
     
     void Start()
     {
         InitializeUI();
         SetupButtons();
+        SubscribeToEvents();
     }
     
     /// <summary>
@@ -46,6 +49,7 @@ public class UIManager : MonoBehaviour
     private void InitializeUI()
     {
         gameManager = FindFirstObjectByType<GameManager>();
+        pizzaOrderManager = FindFirstObjectByType<PizzaOrderManager>();
         
         // Hide panels initially
         if (gameEndPanel != null)
@@ -59,18 +63,24 @@ public class UIManager : MonoBehaviour
         {
             progressBar.minValue = 0f;
             
-            // Eðer GameManager bulunduysa, max deðeri hedef skora ayarla
+            // Eï¿½er GameManager bulunduysa, max deï¿½eri hedef skora ayarla
             if (gameManager != null)
             {
                 progressBar.maxValue = gameManager.TargetScore;
             }
             else
             {
-                // GameManager bulunamadýysa varsayýlan bir deðer kullan
+                // GameManager bulunamadï¿½ysa varsayï¿½lan bir deï¿½er kullan
                 progressBar.maxValue = 1000f; 
             }
             
             progressBar.value = 0f;
+        }
+        
+        // Initialize money display
+        if (pizzaOrderManager != null)
+        {
+            UpdateMoney(pizzaOrderManager.TotalMoney);
         }
     }
     
@@ -111,6 +121,17 @@ public class UIManager : MonoBehaviour
                     gameManager.ResumeGame();
                 ShowPausePanel(false);
             });
+        }
+    }
+    
+    /// <summary>
+    /// Subscribe to game events
+    /// </summary>
+    private void SubscribeToEvents()
+    {
+        if (pizzaOrderManager != null)
+        {
+            pizzaOrderManager.OnMoneyChanged += UpdateMoney;
         }
     }
     
@@ -162,20 +183,31 @@ public class UIManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Update the money display
+    /// </summary>
+    public void UpdateMoney(int money)
+    {
+        if (moneyText != null)
+        {
+            moneyText.text = $"${FormatNumber(money)}";
+        }
+    }
+    
+    /// <summary>
     /// Update the progress bar
     /// </summary>
     public void UpdateProgress(int currentScore, int targetScore)
     {
         if (progressBar != null)
         {
-            // Slider'ýn min ve max deðerlerini ayarla
+            // Slider'ï¿½n min ve max deï¿½erlerini ayarla
             progressBar.minValue = 0;
             progressBar.maxValue = targetScore;
             
-            // Slider deðerini doðrudan currentScore olarak ayarla
+            // Slider deï¿½erini doï¿½rudan currentScore olarak ayarla
             progressBar.value = currentScore;
             
-            // Renk deðiþimi için normalize edilmiþ ilerleme deðeri hesapla
+            // Renk deï¿½iï¿½imi iï¿½in normalize edilmiï¿½ ilerleme deï¿½eri hesapla
             float normalizedProgress = targetScore > 0 ? (float)currentScore / targetScore : 0;
             
             // Change color based on progress
@@ -332,5 +364,14 @@ public class UIManager : MonoBehaviour
         // This could disable/enable various UI buttons when needed
         if (pauseButton != null)
             pauseButton.interactable = enabled;
+    }
+    
+    void OnDestroy()
+    {
+        // Unsubscribe from events
+        if (pizzaOrderManager != null)
+        {
+            pizzaOrderManager.OnMoneyChanged -= UpdateMoney;
+        }
     }
 }
