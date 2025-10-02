@@ -203,6 +203,7 @@ public class GridManager : MonoBehaviour
     
     /// <summary>
     /// Get a random pizza ingredient type, prioritizing current order requirements
+    /// DIFFICULTY SYSTEM: Tile variety limited to ingredients in current pizza order
     /// </summary>
     private Tile.TileType GetRandomPizzaIngredient()
     {
@@ -213,9 +214,15 @@ public class GridManager : MonoBehaviour
             requiredIngredients = pizzaOrderManager.GetRequiredIngredientTypes();
         }
         
-        List<Tile.TileType> availableIngredients = new List<Tile.TileType>();
+        // DIFFICULTY SYSTEM: If we have a current order, limit tile variety to order ingredients only
+        // This makes early levels easier (fewer tile types) and later levels harder (more tile types)
+        if (requiredIngredients != null && requiredIngredients.Count > 0)
+        {
+            return requiredIngredients[Random.Range(0, requiredIngredients.Count)];
+        }
         
-        // Add all basic pizza ingredients (excluding special tiles)
+        // Fallback: If no order is active, use all available pizza ingredients
+        List<Tile.TileType> availableIngredients = new List<Tile.TileType>();
         foreach (Tile.TileType ingredient in System.Enum.GetValues(typeof(Tile.TileType)))
         {
             if (!Tile.IsSpecial(ingredient))
@@ -224,19 +231,12 @@ public class GridManager : MonoBehaviour
             }
         }
         
-        // If we have a current order, prioritize its ingredients (80% chance)
-        if (requiredIngredients != null && requiredIngredients.Count > 0 && Random.Range(0f, 1f) < 0.8f)
-        {
-            return requiredIngredients[Random.Range(0, requiredIngredients.Count)];
-        }
-        
-        // Otherwise, return any pizza ingredient
         if (availableIngredients.Count > 0)
         {
             return availableIngredients[Random.Range(0, availableIngredients.Count)];
         }
         
-        // Fallback to Tomato if something goes wrong
+        // Final fallback to Tomato if something goes wrong
         return Tile.TileType.Tomato;
     }
     
