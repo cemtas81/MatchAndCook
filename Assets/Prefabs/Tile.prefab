@@ -54,6 +54,8 @@ SpriteRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -75,15 +77,16 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 21300000, guid: bb7faf4c850ef48cdb33c2bd17737619, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 2.5, y: 2.5}
+  m_Size: {x: 0.128, y: 0.128}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -107,6 +110,19 @@ MonoBehaviour:
   gridY: 0
   swapDuration: 0.3
   fallDuration: 0.5
+  ingredientSprites:
+  - {fileID: 21300000, guid: bb7faf4c850ef48cdb33c2bd17737619, type: 3}
+  - {fileID: 21300000, guid: 3ba5a88a0508a488a85c30169a8e18de, type: 3}
+  - {fileID: 21300000, guid: c2d9e80be85564073abdc0cc14bfe297, type: 3}
+  - {fileID: 21300000, guid: 90e2b60b2e48d40ad91f58045677f955, type: 3}
+  - {fileID: 21300000, guid: 0e3588bd6507d4164b8cf749ed372de5, type: 3}
+  - {fileID: 21300000, guid: 28b180278493e4d0ea58f28a1c0ba01f, type: 3}
+  - {fileID: 21300000, guid: 2778111920a9f48399ec6cb24229d5e4, type: 3}
+  specialSprites:
+  - {fileID: 21300000, guid: 59310d6494c094eff9ffded8448cca9b, type: 3}
+  - {fileID: 21300000, guid: c426c992373b24cc3883c5a23a361a83, type: 3}
+  - {fileID: 21300000, guid: f27b8794232ef48a399fdfa75bcc1569, type: 3}
+  - {fileID: 21300000, guid: 17eed5c66afc240adb201899c4537b06, type: 3}
 --- !u!61 &6952614575081956936
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -143,13 +159,13 @@ BoxCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
-    border: {x: 0.049999997, y: 0.049999997, z: 0.049999997, w: 0.049999997}
+    border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 0.16, y: 0.16}
-    newSize: {x: 2.5, y: 2.5}
+    oldSize: {x: 0.128, y: 0.128}
+    newSize: {x: 0.128, y: 0.128}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.16, y: 0.16}
+  m_Size: {x: 0.1, y: 0.1}
   m_EdgeRadius: 0

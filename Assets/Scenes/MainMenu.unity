@@ -1446,6 +1446,7 @@ MonoBehaviour:
   gridManager: {fileID: 1156207322}
   scoreManager: {fileID: 1598797678}
   uiManager: {fileID: 1732059382}
+  pizzaOrderManager: {fileID: 0}
 --- !u!4 &804934587
 Transform:
   m_ObjectHideFlags: 0
@@ -2513,7 +2514,7 @@ MonoBehaviour:
   comboPopupPrefab: {fileID: 6458791619880200150, guid: 1ee0e37c333457145a731477394df2fa, type: 3}
   comboPopupParent: {fileID: 1307406011}
   popupDuration: 1.5
-  popupMoveDistance: 20
+  popupMoveDistance: 100
   comboMessages:
   - Good!
   - Nice!

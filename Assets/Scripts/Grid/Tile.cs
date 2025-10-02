@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
 
@@ -18,6 +19,10 @@ public class Tile : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private float swapDuration = 0.3f;
     [SerializeField] private float fallDuration = 0.5f;
+    
+    [Header("Tile Sprites")]
+    [SerializeField] private List<Sprite> ingredientSprites; // Inspector'da her TileType için sprite ekleyin
+    [SerializeField] private List<Sprite> specialSprites;    // Inspector'da her özel TileType için sprite ekleyin
     
     // Pizza ingredient tile types
     public enum TileType
@@ -62,39 +67,48 @@ public class Tile : MonoBehaviour
     {
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
-            
-        // Set color based on tile type (placeholder visuals)
-        Color tileColor = GetTileColor(tileType);
-        spriteRenderer.color = tileColor;
+
+        // Sprite seçimi
+        spriteRenderer.color = Color.white; // Renk sýfýrlansýn
+        spriteRenderer.sprite = GetTileSprite(tileType);
     }
     
     /// <summary>
-    /// Get the color for a specific pizza ingredient tile type (placeholder visual system)
+    /// Get the sprite for a specific pizza ingredient tile type
     /// In production, these would be replaced with actual sprite assets
     /// </summary>
-    private Color GetTileColor(TileType type)
+    private Sprite GetTileSprite(TileType type)
     {
-        switch (type)
+        // Ingredient tile'lar için
+        if (!IsSpecial(type))
         {
-            // Pizza ingredient colors for visual identification
-            case TileType.Tomato:    return new Color(0.8f, 0.2f, 0.2f); // Deep red for tomatoes
-            case TileType.Cheese:    return new Color(1f, 0.9f, 0.3f);   // Golden yellow for cheese
-            case TileType.Pepperoni: return new Color(0.7f, 0.3f, 0.1f); // Dark red-orange for pepperoni
-            case TileType.Mushroom:  return new Color(0.6f, 0.4f, 0.2f); // Brown for mushrooms
-            case TileType.Pepper:    return new Color(0.2f, 0.7f, 0.2f); // Bright green for peppers
-            case TileType.Onion:     return new Color(0.9f, 0.8f, 0.9f); // Light purple-white for onions
-            case TileType.Olives:    return new Color(0.1f, 0.1f, 0.2f); // Dark purple-black for olives
-            
-            // Special power-up tiles with distinct colors
-            case TileType.Bomb:      return new Color(0.2f, 0.2f, 0.2f); // Dark gray for bomb
-            case TileType.Rainbow:   return Color.white;                  // White with rainbow effect
-            case TileType.Lightning: return new Color(0.9f, 0.9f, 0.1f); // Bright yellow for lightning
-            case TileType.Star:      return new Color(1f, 0.6f, 0f);     // Orange for star power-up
-            
-            default: return Color.white;
+            int index = (int)type;
+            if (ingredientSprites != null && index < ingredientSprites.Count)
+                return ingredientSprites[index];
         }
+        else
+        {
+            // Special tile'lar için
+            int specialIndex = GetSpecialSpriteIndex(type);
+            if (specialSprites != null && specialIndex < specialSprites.Count)
+                return specialSprites[specialIndex];
+        }
+        return null;
     }
 
+    private int GetSpecialSpriteIndex(TileType type)
+    {
+        // Sýralama: Bomb, Rainbow, Lightning, Star
+        switch (type)
+        {
+            case TileType.Bomb: return 0;
+            case TileType.Rainbow: return 1;
+            case TileType.Lightning: return 2;
+            case TileType.Star: return 3;
+            default: return -1;
+        }
+    }
+  
     /// <summary>
     /// Animate tile moving to a new position
     /// </summary>
@@ -252,4 +266,4 @@ public class Tile : MonoBehaviour
         transform.DORotate(new Vector3(0, 0, 360), 0.5f, RotateMode.LocalAxisAdd)
             .OnComplete(() => transform.DOScale(Vector3.zero, 0.2f));
     }
-}
+}       

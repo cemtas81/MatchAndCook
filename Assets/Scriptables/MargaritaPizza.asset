@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 657c95fa54ef4f24f8dbc89cd382e1f3, type: 3}
+  m_Name: MargaritaPizza
+  m_EditorClassIdentifier: Assembly-CSharp::PizzaOrder
+  customerName: "mahm\u0131t"
+  orderDescription: vfszvsbvssb
+  customerAvatar: {fileID: -1343065517, guid: 473050aa6b7e3cd44825502a0424db28, type: 3}
+  pizzaName: margarita
+  requiredIngredients:
+  - ingredientType: 0
+    requiredAmount: 5
+    ingredientDisplayName: to
+    ingredientIcon: {fileID: 1228372968, guid: 00a71ceb862b0ec4082596f50d9faac7, type: 3}
+    ingredientColor: {r: 0.990566, g: 0.014017418, b: 0.014017418, a: 0}
+  - ingredientType: 1
+    requiredAmount: 8
+    ingredientDisplayName: to
+    ingredientIcon: {fileID: 352388245, guid: eb3ee6103129d5f4da136ae98f268936, type: 3}
+    ingredientColor: {r: 0.990566, g: 0.014017418, b: 0.014017418, a: 0}
+  - ingredientType: 5
+    requiredAmount: 2
+    ingredientDisplayName: to
+    ingredientIcon: {fileID: 1592184692, guid: 00a71ceb862b0ec4082596f50d9faac7, type: 3}
+    ingredientColor: {r: 0.990566, g: 0.014017418, b: 0.014017418, a: 0}
+  timeLimit: 120
+  difficultyLevel: 1
+  baseReward: 200
+  timeBonus: 100
+  patienceLevel: 1
+  customerMoodColor: {r: 1, g: 1, b: 1, a: 1}
