@@ -3,6 +3,23 @@ A mobile-optimized match-3 cooking game built in Unity.
 
 ## Features
 
+### Session-Based Progression ✨ NEW
+- **Session System**: 10 pizzas per session with increasing difficulty
+- **Dynamic Difficulty**: Time reduces by 10% each session
+- **Session Tracking**: Clear progress indicators for player motivation
+
+### Money System ✨ NEW
+- **Earn Money**: Collect cash by completing pizza orders
+- **Visual Feedback**: Animated coins fly from customer to cash register
+- **Price Variation**: Different pizzas have different prices
+- **Persistent Tracking**: Total money displayed in UI
+
+### Dynamic Ingredients ✨ NEW
+- **Smart Spawning**: Only ingredients needed for current pizza spawn
+- **Early Game**: Simple pizzas with 1-2 ingredients (easier matches)
+- **Late Game**: Complex pizzas with 3-4 ingredients (harder matches)
+- **Automatic Scaling**: Difficulty increases naturally with complexity
+
 ### Core Match-3 Gameplay
 - **8x8 Grid**: Classic match-3 mechanics with cooking-themed tiles
 - **5 Tile Types**: Red (meat/tomatoes), Blue (water/ice), Green (vegetables), Yellow (grains), Purple (special)
@@ -36,9 +53,11 @@ Assets/
 │   ├── MainMenu.unity      # Main menu with settings
 │   └── GameScene.unity     # Core gameplay scene
 ├── Scripts/
+│   ├── Session/            # ✨ NEW: Session management system
 │   ├── Grid/               # Match-3 grid system
 │   ├── Game/               # Game management and scoring
-│   ├── UI/                 # User interface and touch input
+│   ├── Pizza/              # Pizza order system
+│   ├── UI/                 # User interface and touch input (+ CashFlowAnimator)
 │   └── SetupHelper.cs      # Automated scene setup
 ├── Sprites/
 │   └── Tiles/              # Placeholder tile sprites
@@ -50,8 +69,20 @@ Assets/
 
 1. Open in Unity 6000.0.41f1 or later
 2. Run `SetupHelper.cs` to auto-generate scene objects
-3. Build and run on mobile device or simulator
-4. Replace placeholder sprites in Assets/Sprites/ with final artwork
+3. Add `SessionManager` component to GameManager GameObject
+4. Add `CashFlowAnimator` component to UI Canvas
+5. Configure PizzaOrder assets with `price` values
+6. Build and run on mobile device or simulator
+7. Replace placeholder sprites in Assets/Sprites/ with final artwork
+
+## Implementation Details
+
+See [IMPLEMENTATION_SESSION_MONEY.md](IMPLEMENTATION_SESSION_MONEY.md) for detailed documentation on:
+- Session system architecture
+- Money system flow
+- Dynamic ingredient spawning
+- Integration guide
+- Setup instructions
 
 ## Ready for Expansion
 

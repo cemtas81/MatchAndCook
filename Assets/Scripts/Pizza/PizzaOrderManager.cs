@@ -18,6 +18,9 @@ public class PizzaOrderManager : MonoBehaviour
     [SerializeField] private int maxLevel = 50;
     [SerializeField] private float timeScalingFactor = 0.9f; // Time gets shorter each level
     
+    [Header("Money System")]
+    [SerializeField] private int totalMoney = 0;
+    
     [Header("Ingredient Tracking")]
     [SerializeField] private Dictionary<Tile.TileType, int> collectedIngredients = new Dictionary<Tile.TileType, int>();
     
@@ -34,10 +37,13 @@ public class PizzaOrderManager : MonoBehaviour
     public System.Action<float> OnOrderTimeChanged; // remaining time
     public System.Action<Tile.TileType, int> OnIngredientCollected;
     public System.Action<int> OnLevelChanged;
+    public System.Action<int> OnMoneyChanged; // Money amount changed
     
     // References
     private GridManager gridManager;
     private GameManager gameManager;
+    private SessionManager sessionManager;
+    private CashFlowAnimator cashFlowAnimator;
     
     // Properties
     public PizzaOrder CurrentOrder => currentOrder;
@@ -45,6 +51,7 @@ public class PizzaOrderManager : MonoBehaviour
     public float RemainingTime => remainingTime;
     public bool IsOrderActive => isOrderActive;
     public Dictionary<Tile.TileType, int> CollectedIngredients => collectedIngredients;
+    public int TotalMoney => totalMoney;
     
     void Start()
     {
@@ -63,6 +70,8 @@ public class PizzaOrderManager : MonoBehaviour
     {
         gridManager = FindFirstObjectByType<GridManager>();
         gameManager = FindFirstObjectByType<GameManager>();
+        sessionManager = FindFirstObjectByType<SessionManager>();
+        cashFlowAnimator = FindFirstObjectByType<CashFlowAnimator>();
         
         // If no orders are configured, use sample orders for testing
         if (availablePizzaOrders.Count == 0)
@@ -145,8 +154,19 @@ public class PizzaOrderManager : MonoBehaviour
         currentOrder = order;
         orderStartTime = Time.time;
         
-        // Apply level-based time scaling (orders get faster as levels increase)
-        float scaledTimeLimit = order.timeLimit * Mathf.Pow(timeScalingFactor, currentLevel - 1);
+        // Apply session-based time scaling if SessionManager is available
+        float timeMultiplier = 1f;
+        if (sessionManager != null)
+        {
+            timeMultiplier = sessionManager.CurrentTimeMultiplier;
+        }
+        else
+        {
+            // Fallback to level-based scaling
+            timeMultiplier = Mathf.Pow(timeScalingFactor, currentLevel - 1);
+        }
+        
+        float scaledTimeLimit = order.timeLimit * timeMultiplier;
         remainingTime = Mathf.Max(30f, scaledTimeLimit); // Minimum 30 seconds
         
         isOrderActive = true;
@@ -290,9 +310,19 @@ public class PizzaOrderManager : MonoBehaviour
             Debug.Log($"Pizza order completed! Bonus reward: {reward} points");
         }
         
+        // Award money
+        int moneyEarned = currentOrder.price;
+        AddMoney(moneyEarned);
+        
+        // Register completion with session manager
+        if (sessionManager != null)
+        {
+            sessionManager.RegisterPizzaCompleted(true);
+        }
+        
         OnOrderCompleted?.Invoke(currentOrder, true);
         
-        Debug.Log($"Pizza order completed! {currentOrder.customerName} is happy with their {currentOrder.pizzaName}!");
+        Debug.Log($"Pizza order completed! {currentOrder.customerName} is happy with their {currentOrder.pizzaName}! Earned ${moneyEarned}");
         
         // Advance to next level after a short delay
         StartCoroutine(AdvanceToNextLevel());
@@ -307,6 +337,12 @@ public class PizzaOrderManager : MonoBehaviour
         
         orderCompleted = true;
         isOrderActive = false;
+        
+        // Register failure with session manager (no progress in session)
+        if (sessionManager != null)
+        {
+            sessionManager.RegisterPizzaCompleted(false);
+        }
         
         OnOrderCompleted?.Invoke(currentOrder, false);
         
@@ -400,6 +436,25 @@ public class PizzaOrderManager : MonoBehaviour
             remainingTime += extraSeconds;
             Debug.Log($"Added {extraSeconds} seconds to current pizza order. New time: {remainingTime:F1}s");
         }
+    }
+    
+    /// <summary>
+    /// Add money to the total and trigger animation
+    /// </summary>
+    private void AddMoney(int amount)
+    {
+        totalMoney += amount;
+        OnMoneyChanged?.Invoke(totalMoney);
+        
+        // Trigger cash flow animation if available
+        if (cashFlowAnimator != null)
+        {
+            // Get customer position (approximate screen center for now)
+            Vector3 customerPosition = Camera.main != null ? Camera.main.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 10f)) : Vector3.zero;
+            cashFlowAnimator.AnimateMoneyCollection(customerPosition, amount);
+        }
+        
+        Debug.Log($"Money earned: ${amount}. Total: ${totalMoney}");
     }
     
     void OnDestroy()
