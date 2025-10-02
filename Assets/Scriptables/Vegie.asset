@@ -10,25 +10,29 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 657c95fa54ef4f24f8dbc89cd382e1f3, type: 3}
-  m_Name: Pepperoni
+  m_Name: Vegie
   m_EditorClassIdentifier: Assembly-CSharp::PizzaOrder
-  customerName: cingil
-  orderDescription: 'maruul
+  customerName: Vecihi
+  orderDescription: 'ot mot
 
 '
-  customerAvatar: {fileID: -1343065517, guid: 473050aa6b7e3cd44825502a0424db28, type: 3}
-  pizzaName: pepperoni
+  customerAvatar: {fileID: -1591458549, guid: 473050aa6b7e3cd44825502a0424db28, type: 3}
+  pizzaName: Veggie
   requiredIngredients:
   - ingredientType: 0
-    requiredAmount: 3
-  - ingredientType: 1
-    requiredAmount: 3
-  - ingredientType: 2
+    requiredAmount: 2
+  - ingredientType: 3
+    requiredAmount: 2
+  - ingredientType: 4
+    requiredAmount: 2
+  - ingredientType: 6
+    requiredAmount: 2
+  - ingredientType: 6
     requiredAmount: 2
   timeLimit: 120
   difficultyLevel: 1
   baseReward: 200
   timeBonus: 100
-  price: 7
-  patienceLevel: 5
-  customerMoodColor: {r: 1, g: 0, b: 0, a: 1}
+  price: 6
+  patienceLevel: 1
+  customerMoodColor: {r: 1, g: 1, b: 1, a: 1}
