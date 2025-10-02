@@ -319,15 +319,12 @@ public class IngredientItemUI : MonoBehaviour
     
     private IngredientRequirement requirement;
     private int currentProgress;
-<<<<<<< Updated upstream
-    
-    public Tile.TileType IngredientType => requirement?.ingredientType ?? Tile.TileType.Tomato;
-    
-=======
+
+
 
     public Tile.TileType IngredientType => requirement != null ? requirement.ingredientType : Tile.TileType.Tomato;
 
->>>>>>> Stashed changes
+
     /// <summary>
     /// Initialize ingredient item with requirement data
     /// </summary>
