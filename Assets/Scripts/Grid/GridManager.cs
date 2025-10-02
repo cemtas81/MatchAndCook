@@ -16,6 +16,7 @@ public class GridManager : MonoBehaviour
     
     [Header("Tile Setup")]
     [SerializeField] private GameObject tilePrefab;
+    [SerializeField] private GameObject powerUpTilePrefab; // Power-up tile prefab
     [SerializeField] private Transform gridParent;
 
     [Header("Animation Settings")]
@@ -23,6 +24,11 @@ public class GridManager : MonoBehaviour
     [SerializeField] private float fallDuration = 0.5f;
     [SerializeField] private float matchClearDuration = 0.2f;
     [SerializeField] private float delayBetweenActions = 0.3f;
+    
+    [Header("Power-Up Settings")]
+    [SerializeField] private int combo4Threshold = 4; // Minimum tiles for special power-ups
+    [SerializeField] private int combo5Threshold = 5; // Threshold for more powerful combos
+    [SerializeField] private int combo6Threshold = 6; // Threshold for most powerful combos
     
     // Grid data
     private Tile[,] grid;
@@ -34,6 +40,8 @@ public class GridManager : MonoBehaviour
     
     // Pizza order integration
     private PizzaOrderManager pizzaOrderManager;
+    // Power-up manager integration
+    private PowerUpManager powerUpManager;
     
     void Start()
     {
@@ -41,6 +49,9 @@ public class GridManager : MonoBehaviour
         
         // Find pizza order manager for ingredient coordination
         pizzaOrderManager = FindFirstObjectByType<PizzaOrderManager>();
+        
+        // Find power-up manager for special tile creation
+        powerUpManager = FindFirstObjectByType<PowerUpManager>();
     }
     
     /// <summary>
@@ -203,6 +214,7 @@ public class GridManager : MonoBehaviour
     
     /// <summary>
     /// Get a random pizza ingredient type, prioritizing current order requirements
+    /// DIFFICULTY SYSTEM: Tile variety limited to ingredients in current pizza order
     /// </summary>
     private Tile.TileType GetRandomPizzaIngredient()
     {
@@ -213,9 +225,15 @@ public class GridManager : MonoBehaviour
             requiredIngredients = pizzaOrderManager.GetRequiredIngredientTypes();
         }
         
-        List<Tile.TileType> availableIngredients = new List<Tile.TileType>();
+        // DIFFICULTY SYSTEM: If we have a current order, limit tile variety to order ingredients only
+        // This makes early levels easier (fewer tile types) and later levels harder (more tile types)
+        if (requiredIngredients != null && requiredIngredients.Count > 0)
+        {
+            return requiredIngredients[Random.Range(0, requiredIngredients.Count)];
+        }
         
-        // Add all basic pizza ingredients (excluding special tiles)
+        // Fallback: If no order is active, use all available pizza ingredients
+        List<Tile.TileType> availableIngredients = new List<Tile.TileType>();
         foreach (Tile.TileType ingredient in System.Enum.GetValues(typeof(Tile.TileType)))
         {
             if (!Tile.IsSpecial(ingredient))
@@ -224,19 +242,12 @@ public class GridManager : MonoBehaviour
             }
         }
         
-        // If we have a current order, prioritize its ingredients (80% chance)
-        if (requiredIngredients != null && requiredIngredients.Count > 0 && Random.Range(0f, 1f) < 0.8f)
-        {
-            return requiredIngredients[Random.Range(0, requiredIngredients.Count)];
-        }
-        
-        // Otherwise, return any pizza ingredient
         if (availableIngredients.Count > 0)
         {
             return availableIngredients[Random.Range(0, availableIngredients.Count)];
         }
         
-        // Fallback to Tomato if something goes wrong
+        // Final fallback to Tomato if something goes wrong
         return Tile.TileType.Tomato;
     }
     
@@ -413,6 +424,47 @@ public class GridManager : MonoBehaviour
             clearPositions[tile.gridX].Add(tile.gridY);
         }
         
+        // POWER-UP SYSTEM: Detect combos and determine power-up spawn location
+        Vector2Int? powerUpSpawnPosition = null;
+        Tile.TileType powerUpType = Tile.TileType.Bomb; // Default
+        
+        if (tilesToClear.Count >= combo4Threshold)
+        {
+            // Calculate pivot position (center of match)
+            int sumX = 0, sumY = 0;
+            foreach (Tile tile in tilesToClear)
+            {
+                sumX += tile.gridX;
+                sumY += tile.gridY;
+            }
+            int pivotX = sumX / tilesToClear.Count;
+            int pivotY = sumY / tilesToClear.Count;
+            powerUpSpawnPosition = new Vector2Int(pivotX, pivotY);
+            
+            // Determine power-up type based on combo size
+            if (tilesToClear.Count >= combo6Threshold)
+            {
+                powerUpType = Tile.TileType.Star; // Star: destroys all of one type
+            }
+            else if (tilesToClear.Count >= combo5Threshold)
+            {
+                powerUpType = Tile.TileType.Rainbow; // Rainbow: matches with anything
+            }
+            else
+            {
+                // Check if match is horizontal or vertical for Lightning
+                bool isHorizontal = CheckIfHorizontalMatch(tilesToClear);
+                if (isHorizontal)
+                {
+                    powerUpType = Tile.TileType.Lightning; // Lightning: destroys row/column
+                }
+                else
+                {
+                    powerUpType = Tile.TileType.Bomb; // Bomb: destroys 3x3
+                }
+            }
+        }
+        
         // Create clear animation sequence
         Sequence clearSequence = DOTween.Sequence();
         
@@ -432,6 +484,9 @@ public class GridManager : MonoBehaviour
         }
         
         // After all clear animations finish, destroy tiles and mark grid slots as empty
+        Vector2Int? finalPowerUpPosition = powerUpSpawnPosition;
+        Tile.TileType finalPowerUpType = powerUpType;
+        
         clearSequence.OnComplete(() => {
             // Actually destroy the tiles and update grid
             foreach (Tile tile in tilesToClear)
@@ -447,6 +502,12 @@ public class GridManager : MonoBehaviour
                         grid[x, y] = null;
                     }
                 }
+            }
+            
+            // POWER-UP SYSTEM: Spawn power-up tile at pivot position
+            if (finalPowerUpPosition.HasValue && IsValidPosition(finalPowerUpPosition.Value.x, finalPowerUpPosition.Value.y))
+            {
+                CreatePowerUpTile(finalPowerUpPosition.Value.x, finalPowerUpPosition.Value.y, finalPowerUpType);
             }
             
             // Notify about cleared tiles
@@ -677,5 +738,317 @@ public class GridManager : MonoBehaviour
     public Tile[,] GetGrid()
     {
         return grid;
+    }
+    
+    /// <summary>
+    /// Check if a position is valid on the grid
+    /// </summary>
+    private bool IsValidPosition(int x, int y)
+    {
+        return x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;
+    }
+    
+    /// <summary>
+    /// Check if a match is primarily horizontal (for determining power-up type)
+    /// </summary>
+    private bool CheckIfHorizontalMatch(List<Tile> tiles)
+    {
+        if (tiles.Count < 2) return false;
+        
+        // Check if most tiles share the same Y coordinate (horizontal)
+        Dictionary<int, int> yCoordCounts = new Dictionary<int, int>();
+        foreach (Tile tile in tiles)
+        {
+            if (!yCoordCounts.ContainsKey(tile.gridY))
+                yCoordCounts[tile.gridY] = 0;
+            yCoordCounts[tile.gridY]++;
+        }
+        
+        int maxYCount = 0;
+        foreach (var count in yCoordCounts.Values)
+        {
+            if (count > maxYCount)
+                maxYCount = count;
+        }
+        
+        // If more than half tiles are on the same row, it's horizontal
+        return maxYCount > tiles.Count / 2;
+    }
+    
+    /// <summary>
+    /// Create a power-up tile at specified position
+    /// </summary>
+    private void CreatePowerUpTile(int x, int y, Tile.TileType powerUpType)
+    {
+        if (grid[x, y] != null) return; // Position not empty
+        
+        Vector3 gridCenter = new Vector3((gridWidth - 1) * tileSpacing * 0.5f, (gridHeight - 1) * tileSpacing * 0.5f, 0);
+        Vector3 position = new Vector3(x * tileSpacing, y * tileSpacing, 0) - gridCenter;
+        
+        // Use power-up prefab if available, otherwise use regular tile prefab
+        GameObject prefabToUse = powerUpTilePrefab != null ? powerUpTilePrefab : tilePrefab;
+        GameObject tileObject = Instantiate(prefabToUse, position, Quaternion.identity, gridParent);
+        
+        Tile tile = tileObject.GetComponent<Tile>();
+        if (tile == null)
+        {
+            tile = tileObject.AddComponent<Tile>();
+        }
+        
+        // Ensure components exist
+        if (tileObject.GetComponent<SpriteRenderer>() == null)
+        {
+            SpriteRenderer sr = tileObject.AddComponent<SpriteRenderer>();
+            sr.sprite = CreateDefaultSprite();
+        }
+        
+        if (tileObject.GetComponent<Collider2D>() == null)
+        {
+            BoxCollider2D collider = tileObject.AddComponent<BoxCollider2D>();
+            collider.size = Vector2.one;
+        }
+        
+        // Initialize as power-up tile
+        tile.Initialize(powerUpType, x, y);
+        grid[x, y] = tile;
+        
+        // Play special creation effect
+        tile.transform.localScale = Vector3.zero;
+        tile.transform.DOScale(Vector3.one, 0.5f)
+            .SetEase(Ease.OutBack)
+            .OnComplete(() => {
+                // Add pulsing animation to power-up tiles
+                tile.transform.DOScale(Vector3.one * 1.1f, 0.5f)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetEase(Ease.InOutSine);
+            });
+        
+        Debug.Log($"Created {powerUpType} power-up tile at ({x}, {y})");
+    }
+    
+    /// <summary>
+    /// Activate power-up tile effect (called when power-up is clicked)
+    /// </summary>
+    public void ActivatePowerUpTile(Tile powerUpTile)
+    {
+        if (powerUpTile == null || !powerUpTile.IsSpecialTile) return;
+        
+        int x = powerUpTile.gridX;
+        int y = powerUpTile.gridY;
+        
+        // Play activation animation
+        powerUpTile.ActivateSpecialEffect();
+        
+        // Determine which tiles to destroy based on power-up type
+        List<Tile> tilesToDestroy = new List<Tile>();
+        
+        switch (powerUpTile.Type)
+        {
+            case Tile.TileType.Bomb:
+                // 3x3 area around the bomb
+                tilesToDestroy = GetTilesInRadius(x, y, 1);
+                break;
+                
+            case Tile.TileType.Lightning:
+                // Entire row or column
+                if (Random.value > 0.5f)
+                    tilesToDestroy = GetTilesInRow(y);
+                else
+                    tilesToDestroy = GetTilesInColumn(x);
+                break;
+                
+            case Tile.TileType.Star:
+                // Entire column (changed from original spec for variety)
+                tilesToDestroy = GetTilesInColumn(x);
+                break;
+                
+            case Tile.TileType.Rainbow:
+                // All tiles of the same type as a random tile
+                Tile.TileType targetType = GetRandomIngredientTypeOnGrid();
+                if (targetType != Tile.TileType.Tomato || HasTileType(targetType))
+                {
+                    tilesToDestroy = GetAllTilesOfType(targetType);
+                }
+                break;
+        }
+        
+        // Destroy the power-up tile itself
+        if (!tilesToDestroy.Contains(powerUpTile))
+            tilesToDestroy.Add(powerUpTile);
+        
+        // Animate and destroy tiles
+        DestroyTilesWithAnimation(tilesToDestroy);
+    }
+    
+    /// <summary>
+    /// Get all tiles in a radius around position
+    /// </summary>
+    private List<Tile> GetTilesInRadius(int centerX, int centerY, int radius)
+    {
+        List<Tile> tiles = new List<Tile>();
+        
+        for (int x = centerX - radius; x <= centerX + radius; x++)
+        {
+            for (int y = centerY - radius; y <= centerY + radius; y++)
+            {
+                if (IsValidPosition(x, y) && grid[x, y] != null)
+                {
+                    tiles.Add(grid[x, y]);
+                }
+            }
+        }
+        
+        return tiles;
+    }
+    
+    /// <summary>
+    /// Get all tiles in a row
+    /// </summary>
+    private List<Tile> GetTilesInRow(int row)
+    {
+        List<Tile> tiles = new List<Tile>();
+        
+        for (int x = 0; x < gridWidth; x++)
+        {
+            if (grid[x, row] != null)
+            {
+                tiles.Add(grid[x, row]);
+            }
+        }
+        
+        return tiles;
+    }
+    
+    /// <summary>
+    /// Get all tiles in a column
+    /// </summary>
+    private List<Tile> GetTilesInColumn(int column)
+    {
+        List<Tile> tiles = new List<Tile>();
+        
+        for (int y = 0; y < gridHeight; y++)
+        {
+            if (grid[column, y] != null)
+            {
+                tiles.Add(grid[column, y]);
+            }
+        }
+        
+        return tiles;
+    }
+    
+    /// <summary>
+    /// Get all tiles of a specific type
+    /// </summary>
+    private List<Tile> GetAllTilesOfType(Tile.TileType type)
+    {
+        List<Tile> tiles = new List<Tile>();
+        
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                if (grid[x, y] != null && grid[x, y].Type == type && !grid[x, y].IsSpecialTile)
+                {
+                    tiles.Add(grid[x, y]);
+                }
+            }
+        }
+        
+        return tiles;
+    }
+    
+    /// <summary>
+    /// Get a random ingredient type currently on the grid
+    /// </summary>
+    private Tile.TileType GetRandomIngredientTypeOnGrid()
+    {
+        List<Tile.TileType> typesOnGrid = new List<Tile.TileType>();
+        
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                if (grid[x, y] != null && !grid[x, y].IsSpecialTile)
+                {
+                    Tile.TileType type = grid[x, y].Type;
+                    if (!typesOnGrid.Contains(type))
+                    {
+                        typesOnGrid.Add(type);
+                    }
+                }
+            }
+        }
+        
+        return typesOnGrid.Count > 0 ? typesOnGrid[Random.Range(0, typesOnGrid.Count)] : Tile.TileType.Tomato;
+    }
+    
+    /// <summary>
+    /// Check if grid has at least one tile of given type
+    /// </summary>
+    private bool HasTileType(Tile.TileType type)
+    {
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                if (grid[x, y] != null && grid[x, y].Type == type && !grid[x, y].IsSpecialTile)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Destroy tiles with animation
+    /// </summary>
+    private void DestroyTilesWithAnimation(List<Tile> tilesToDestroy)
+    {
+        if (tilesToDestroy.Count == 0) return;
+        
+        Sequence destroySequence = DOTween.Sequence();
+        
+        // Animate each tile
+        foreach (Tile tile in tilesToDestroy)
+        {
+            if (tile != null)
+            {
+                destroySequence.Join(tile.transform.DOScale(0.1f, matchClearDuration).SetEase(Ease.InBack));
+                SpriteRenderer sr = tile.GetComponent<SpriteRenderer>();
+                if (sr != null)
+                {
+                    destroySequence.Join(sr.DOFade(0, matchClearDuration).SetEase(Ease.InQuad));
+                }
+            }
+        }
+        
+        // After animation, destroy and refill
+        destroySequence.OnComplete(() => {
+            foreach (Tile tile in tilesToDestroy)
+            {
+                if (tile != null)
+                {
+                    int x = tile.gridX;
+                    int y = tile.gridY;
+                    
+                    if (IsValidPosition(x, y) && grid[x, y] == tile)
+                    {
+                        Destroy(tile.gameObject);
+                        grid[x, y] = null;
+                    }
+                }
+            }
+            
+            // Notify and refill
+            OnTilesCleared?.Invoke(tilesToDestroy.Count);
+            
+            DOTween.Sequence()
+                .AppendInterval(delayBetweenActions)
+                .OnComplete(() => DropTilesWithAnimation());
+        });
+        
+        destroySequence.Play();
     }
 }

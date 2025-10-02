@@ -9,6 +9,7 @@ public static class SamplePizzaOrders
 {
     /// <summary>
     /// Create a simple Margherita pizza order for early levels
+    /// DIFFICULTY: 2 tile types (easiest for beginners)
     /// </summary>
     public static PizzaOrder CreateMargheritaPizza()
     {
@@ -32,6 +33,7 @@ public static class SamplePizzaOrders
     
     /// <summary>
     /// Create a Pepperoni pizza order for mid-level gameplay
+    /// DIFFICULTY: 3 tile types (moderate difficulty)
     /// </summary>
     public static PizzaOrder CreatePepperoniPizza()
     {
@@ -56,6 +58,7 @@ public static class SamplePizzaOrders
     
     /// <summary>
     /// Create a Veggie Supreme pizza order for higher level gameplay
+    /// DIFFICULTY: 5 tile types (harder with more variety)
     /// </summary>
     public static PizzaOrder CreateVeggieSupreme()
     {
@@ -82,6 +85,7 @@ public static class SamplePizzaOrders
     
     /// <summary>
     /// Create a Deluxe pizza order for expert level gameplay
+    /// DIFFICULTY: 7 tile types (maximum difficulty with all ingredients)
     /// </summary>
     public static PizzaOrder CreateDeluxePizza()
     {
