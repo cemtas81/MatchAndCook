@@ -1,468 +1,406 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Manages pizza orders for the simplified Match-3 game.
-/// Handles one customer at a time with circular progress tracking.
-/// Each level corresponds to completing one pizza order.
-/// </summary>
 public class PizzaOrderManager : MonoBehaviour
 {
     [Header("Order Settings")]
     [SerializeField] private List<PizzaOrder> availablePizzaOrders = new List<PizzaOrder>();
     [SerializeField] private PizzaOrder currentOrder;
-    
+    [SerializeField] private PizzaOrder nextOrder; // preview (like Tetris)
+
     [Header("Level Progression")]
     [SerializeField] private int currentLevel = 1;
     [SerializeField] private int maxLevel = 50;
-    [SerializeField] private float timeScalingFactor = 0.9f; // Time gets shorter each level
-    
+    [SerializeField] private float timeScalingFactor = 0.9f;
+
     [Header("Money System")]
     [SerializeField] private int totalMoney = 0;
-    
+
     [Header("Ingredient Tracking")]
     [SerializeField] private Dictionary<Tile.TileType, int> collectedIngredients = new Dictionary<Tile.TileType, int>();
-    
-    // Current order state
+
+    // State
     private float orderStartTime;
     private float remainingTime;
     private bool isOrderActive = false;
     private bool orderCompleted = false;
-    
-    // Events for UI updates
+
+    // Star system: +1 star after every 2 consecutive successes
+    private int successSinceLastStar = 0;
+
+    // Events
     public System.Action<PizzaOrder> OnOrderStarted;
-    public System.Action<PizzaOrder, bool> OnOrderCompleted; // bool: success
-    public System.Action<float> OnOrderProgressChanged; // 0-1 progress
-    public System.Action<float> OnOrderTimeChanged; // remaining time
+    public System.Action<PizzaOrder, bool> OnOrderCompleted;
+    public System.Action<float> OnOrderProgressChanged;
+    public System.Action<float> OnOrderTimeChanged;
     public System.Action<Tile.TileType, int> OnIngredientCollected;
     public System.Action<int> OnLevelChanged;
-    public System.Action<int> OnMoneyChanged; // Money amount changed
-    
+    public System.Action<int> OnMoneyChanged;
+    public System.Action<PizzaOrder> OnNextOrderPrepared;
+
     // References
     private GridManager gridManager;
     private GameManager gameManager;
     private SessionManager sessionManager;
     private CashFlowAnimator cashFlowAnimator;
-    
+    private MaterialStockManager stockManager;
+    private RestaurantStarManager starManager;
+
     // Properties
     public PizzaOrder CurrentOrder => currentOrder;
+    public PizzaOrder NextOrder => nextOrder;
     public int CurrentLevel => currentLevel;
     public float RemainingTime => remainingTime;
     public bool IsOrderActive => isOrderActive;
     public Dictionary<Tile.TileType, int> CollectedIngredients => collectedIngredients;
     public int TotalMoney => totalMoney;
-    
+
     void Start()
     {
-        InitializePizzaOrderManager();
+        Initialize();
     }
-    
+
     void Update()
     {
         UpdateOrderTimer();
     }
-    
-    /// <summary>
-    /// Initialize the pizza order manager and start first order
-    /// </summary>
-    private void InitializePizzaOrderManager()
+
+    private void Initialize()
     {
         gridManager = FindFirstObjectByType<GridManager>();
         gameManager = FindFirstObjectByType<GameManager>();
         sessionManager = FindFirstObjectByType<SessionManager>();
         cashFlowAnimator = FindFirstObjectByType<CashFlowAnimator>();
-        
-        // If no orders are configured, use sample orders for testing
+        stockManager = FindFirstObjectByType<MaterialStockManager>();
+        starManager = FindFirstObjectByType<RestaurantStarManager>();
+
         if (availablePizzaOrders.Count == 0)
-        {
             availablePizzaOrders = SamplePizzaOrders.GetAllSampleOrders();
-            Debug.Log("Using sample pizza orders for demonstration");
-        }
-        
-        // Subscribe to tile clearing events to collect ingredients
+
         if (gridManager != null)
-        {
             gridManager.OnTilesCleared += OnTilesCleared;
-        }
-        
-        // Initialize ingredient collection dictionary for all pizza ingredients
-        InitializeIngredientCollection();
-        
-        // Start the first pizza order
-        StartNextPizzaOrder();
+
+        InitIngredientDictionary();
+        PrepareInitialOrders();
     }
-    
-    /// <summary>
-    /// Initialize ingredient collection tracking
-    /// </summary>
-    private void InitializeIngredientCollection()
+
+    private void InitIngredientDictionary()
     {
         collectedIngredients.Clear();
-        
-        // Initialize all pizza ingredient types to 0
         System.Array ingredientTypes = System.Enum.GetValues(typeof(Tile.TileType));
-        foreach (Tile.TileType ingredientType in ingredientTypes)
+        foreach (Tile.TileType t in ingredientTypes)
         {
-            // Only track actual ingredients, not special tiles
-            if (!Tile.IsSpecial(ingredientType))
-            {
-                collectedIngredients[ingredientType] = 0;
-            }
+            if (!Tile.IsSpecial(t))
+                collectedIngredients[t] = 0;
         }
     }
-    
-    /// <summary>
-    /// Start the next pizza order based on current level
-    /// </summary>
-    public void StartNextPizzaOrder()
+
+    private List<PizzaOrder> GetLevelSuitable()
     {
-        if (availablePizzaOrders.Count == 0) 
+        List<PizzaOrder> list = new List<PizzaOrder>();
+        foreach (var o in availablePizzaOrders)
+            if (o.difficultyLevel <= currentLevel)
+                list.Add(o);
+        if (list.Count == 0) list = availablePizzaOrders;
+        return list;
+    }
+
+    private PizzaOrder PickRandom(List<PizzaOrder> pool)
+    {
+        if (pool == null || pool.Count == 0) return null;
+        return pool[Random.Range(0, pool.Count)];
+    }
+
+    private void PrepareInitialOrders()
+    {
+        var suitable = GetLevelSuitable();
+        List<PizzaOrder> fulfillable = new List<PizzaOrder>();
+        if (stockManager != null)
         {
-            Debug.LogWarning("No pizza orders available!");
+            foreach (var o in suitable)
+                if (stockManager.CanFulfillOrder(o))
+                    fulfillable.Add(o);
+        }
+
+        if (fulfillable.Count == 0)
+        {
+            currentOrder = null;
+            nextOrder = PickRandom(suitable);
+            OnNextOrderPrepared?.Invoke(nextOrder);
+            StartCoroutine(WaitForFulfillableAndStart());
             return;
         }
-        
-        // Find orders suitable for current level
-        List<PizzaOrder> suitableOrders = new List<PizzaOrder>();
-        foreach (var order in availablePizzaOrders)
+
+        currentOrder = PickRandom(fulfillable);
+        nextOrder = PickRandom(suitable);
+        StartPizzaOrder(currentOrder);
+        OnNextOrderPrepared?.Invoke(nextOrder);
+    }
+
+    private IEnumerator WaitForFulfillableAndStart()
+    {
+        while (currentOrder == null)
         {
-            if (order.difficultyLevel <= currentLevel)
+            yield return new WaitForSeconds(2f);
+            var suitable = GetLevelSuitable();
+            List<PizzaOrder> fulfillable = new List<PizzaOrder>();
+            foreach (var o in suitable)
+                if (stockManager == null || stockManager.CanFulfillOrder(o))
+                    fulfillable.Add(o);
+            if (fulfillable.Count > 0)
             {
-                suitableOrders.Add(order);
+                currentOrder = PickRandom(fulfillable);
+                StartPizzaOrder(currentOrder);
             }
         }
-        
-        // If no suitable orders, use any available order
-        if (suitableOrders.Count == 0)
-        {
-            suitableOrders = availablePizzaOrders;
-        }
-        
-        // Select random order from suitable ones
-        PizzaOrder selectedOrder = suitableOrders[Random.Range(0, suitableOrders.Count)];
-        StartPizzaOrder(selectedOrder);
     }
-    
-    /// <summary>
-    /// Start a specific pizza order
-    /// </summary>
+
+    private void PromoteAndPrepareNext()
+    {
+        var suitable = GetLevelSuitable();
+
+        if (nextOrder != null)
+        {
+            if (stockManager != null && !stockManager.CanFulfillOrder(nextOrder))
+            {
+                List<PizzaOrder> fulfillable = new List<PizzaOrder>();
+                foreach (var o in suitable)
+                    if (stockManager.CanFulfillOrder(o))
+                        fulfillable.Add(o);
+
+                if (fulfillable.Count > 0)
+                    currentOrder = PickRandom(fulfillable);
+                else
+                {
+                    currentOrder = null;
+                    StartCoroutine(WaitForFulfillableAndStart());
+                }
+            }
+            else
+            {
+                currentOrder = nextOrder;
+            }
+        }
+
+        nextOrder = PickRandom(suitable);
+        OnNextOrderPrepared?.Invoke(nextOrder);
+
+        if (currentOrder != null)
+            StartPizzaOrder(currentOrder);
+    }
+
     public void StartPizzaOrder(PizzaOrder order)
     {
         if (order == null) return;
-        
+
+        if (stockManager != null && !stockManager.CanFulfillOrder(order))
+        {
+            currentOrder = null;
+            StartCoroutine(WaitForFulfillableAndStart());
+            return;
+        }
+
         currentOrder = order;
         orderStartTime = Time.time;
-        
-        // Apply session-based time scaling if SessionManager is available
-        float timeMultiplier = 1f;
-        if (sessionManager != null)
-        {
-            timeMultiplier = sessionManager.CurrentTimeMultiplier;
-        }
-        else
-        {
-            // Fallback to level-based scaling
-            timeMultiplier = Mathf.Pow(timeScalingFactor, currentLevel - 1);
-        }
-        
-        float scaledTimeLimit = order.timeLimit * timeMultiplier;
-        remainingTime = Mathf.Max(30f, scaledTimeLimit); // Minimum 30 seconds
-        
+
+        float timeMultiplier = sessionManager != null
+            ? sessionManager.CurrentTimeMultiplier
+            : Mathf.Pow(timeScalingFactor, currentLevel - 1);
+
+        remainingTime = Mathf.Max(30f, order.timeLimit * timeMultiplier);
         isOrderActive = true;
         orderCompleted = false;
-        
-        // Reset ingredient collection for new order  
-        InitializeIngredientCollection();
-        
-        // Notify UI
+        InitIngredientDictionary();
+
+        gridManager?.ResetGridForNewOrder();
+
         OnOrderStarted?.Invoke(currentOrder);
         OnOrderProgressChanged?.Invoke(0f);
-        
-        Debug.Log($"Level {currentLevel}: New pizza order from {order.customerName} - {order.pizzaName} ({remainingTime:F1}s)");
+
+        Debug.Log($"New order: {order.pizzaName}");
     }
-    
-    /// <summary>
-    /// Update the order timer
-    /// </summary>
+
     private void UpdateOrderTimer()
     {
         if (!isOrderActive || orderCompleted) return;
-        
+
         remainingTime -= Time.deltaTime;
         OnOrderTimeChanged?.Invoke(remainingTime);
-        
-        // Check if time is up
+
         if (remainingTime <= 0f)
-        {
             FailCurrentOrder();
-        }
     }
-    
-    /// <summary>
-    /// Handle tiles being cleared - collect ingredients for current pizza order
-    /// </summary>
+
     private void OnTilesCleared(int tilesCleared)
     {
         if (!isOrderActive || currentOrder == null || orderCompleted) return;
-        
-        // For this simplified implementation, we'll simulate ingredient collection
-        // In a real implementation, you'd need to know exactly which tiles were cleared
         CollectIngredientsFromMatch();
     }
-    
-    /// <summary>
-    /// Simulate collecting appropriate ingredients from a match
-    /// In production, this would receive the actual tiles that were matched
-    /// </summary>
+
     private void CollectIngredientsFromMatch()
     {
         if (currentOrder == null || currentOrder.requiredIngredients.Count == 0) return;
-        
-        // Find the ingredient type that's most needed for current order
+
         PizzaIngredientRequirement mostNeeded = null;
         int highestNeed = 0;
-        
-        foreach (var requirement in currentOrder.requiredIngredients)
+        foreach (var req in currentOrder.requiredIngredients)
         {
-            int collected = collectedIngredients.ContainsKey(requirement.ingredientType) 
-                ? collectedIngredients[requirement.ingredientType] : 0;
-            int need = requirement.requiredAmount - collected;
-            
+            int collected = collectedIngredients.ContainsKey(req.ingredientType)
+                ? collectedIngredients[req.ingredientType] : 0;
+            int need = req.requiredAmount - collected;
             if (need > highestNeed)
             {
                 highestNeed = need;
-                mostNeeded = requirement;
+                mostNeeded = req;
             }
         }
-        
-        // Collect 1-3 of the most needed ingredient
+
         if (mostNeeded != null && highestNeed > 0)
         {
-            int amountToCollect = Random.Range(1, Mathf.Min(4, highestNeed + 1));
-            CollectIngredient(mostNeeded.ingredientType, amountToCollect);
+            int amount = Random.Range(1, Mathf.Min(4, highestNeed + 1));
+            CollectIngredient(mostNeeded.ingredientType, amount);
         }
     }
-    
-    /// <summary>
-    /// Collect a specific ingredient for the current pizza order
-    /// </summary>
+
     public void CollectIngredient(Tile.TileType ingredientType, int amount)
     {
         if (!isOrderActive || currentOrder == null || orderCompleted) return;
-        
-        // Check if this ingredient is needed for current order
-        bool isNeeded = false;
-        foreach (var requirement in currentOrder.requiredIngredients)
-        {
-            if (requirement.ingredientType == ingredientType)
-            {
-                isNeeded = true;
-                break;
-            }
-        }
-        
-        if (!isNeeded) return;
-        
-        // Add to collection (don't exceed requirement)
+
+        bool needed = false;
+        foreach (var req in currentOrder.requiredIngredients)
+            if (req.ingredientType == ingredientType) { needed = true; break; }
+        if (!needed) return;
+
         if (collectedIngredients.ContainsKey(ingredientType))
-        {
             collectedIngredients[ingredientType] += amount;
-        }
         else
-        {
             collectedIngredients[ingredientType] = amount;
-        }
-        
-        // Notify UI of ingredient collection
+
         OnIngredientCollected?.Invoke(ingredientType, amount);
-        
-        // Update progress
+
         float progress = currentOrder.GetCompletionProgress(collectedIngredients);
         OnOrderProgressChanged?.Invoke(progress);
-        
-        Debug.Log($"Collected {amount} {ingredientType}. Progress: {progress:P1}");
-        
-        // Check if order is completed
+
         if (currentOrder.IsCompleted(collectedIngredients))
-        {
             CompleteCurrentOrder();
-        }
     }
-    
-    /// <summary>
-    /// Complete the current pizza order successfully
-    /// </summary>
+
     private void CompleteCurrentOrder()
     {
         if (!isOrderActive || currentOrder == null || orderCompleted) return;
-        
+
         orderCompleted = true;
         isOrderActive = false;
-        
+
         float completionTime = Time.time - orderStartTime;
         int reward = currentOrder.CalculateReward(completionTime);
-        
-        // Award points through game manager
-        if (gameManager != null)
-        {
-            // Add the reward to current score (integration with existing score system)
-            Debug.Log($"Pizza order completed! Bonus reward: {reward} points");
-        }
-        
-        // Award money
+
         int moneyEarned = currentOrder.price;
         AddMoney(moneyEarned);
-        
-        // Register completion with session manager
-        if (sessionManager != null)
+
+        stockManager?.ConsumeIngredients(currentOrder);
+
+        successSinceLastStar++;
+        if (successSinceLastStar >= 2)
         {
-            sessionManager.RegisterPizzaCompleted(true);
+            starManager?.OnPizzaSuccess();
+            successSinceLastStar = 0;
         }
-        
+
+        sessionManager?.RegisterPizzaCompleted(true);
         OnOrderCompleted?.Invoke(currentOrder, true);
-        
-        Debug.Log($"Pizza order completed! {currentOrder.customerName} is happy with their {currentOrder.pizzaName}! Earned ${moneyEarned}");
-        
-        // Advance to next level after a short delay
+
+        Debug.Log($"Order completed successfully: {currentOrder.pizzaName}");
+
         StartCoroutine(AdvanceToNextLevel());
     }
-    
-    /// <summary>
-    /// Fail the current order due to timeout
-    /// </summary>
+
     private void FailCurrentOrder()
     {
         if (!isOrderActive || currentOrder == null || orderCompleted) return;
-        
+
         orderCompleted = true;
         isOrderActive = false;
-        
-        // Register failure with session manager (no progress in session)
-        if (sessionManager != null)
-        {
-            sessionManager.RegisterPizzaCompleted(false);
-        }
-        
+
+        starManager?.OnPizzaFailed();
+        successSinceLastStar = 0;
+
+        sessionManager?.RegisterPizzaCompleted(false);
         OnOrderCompleted?.Invoke(currentOrder, false);
-        
-        Debug.Log($"Pizza order failed! {currentOrder.customerName} is disappointed...");
-        
-        // Restart the same level or allow retry
+
+        Debug.Log($"Order failed: {currentOrder.pizzaName}");
+
         StartCoroutine(RetryCurrentLevel());
     }
-    
-    /// <summary>
-    /// Advance to the next level with a new customer
-    /// </summary>
+
     private IEnumerator AdvanceToNextLevel()
     {
-        yield return new WaitForSeconds(2f); // Show completion briefly
-        
+        yield return new WaitForSeconds(1.5f);
         currentLevel++;
         OnLevelChanged?.Invoke(currentLevel);
-        
         if (currentLevel <= maxLevel)
-        {
-            StartNextPizzaOrder();
-        }
-        else
-        {
-            // Game completed!
-            Debug.Log("Congratulations! You've completed all pizza orders!");
-        }
+            PromoteAndPrepareNext();
     }
-    
-    /// <summary>
-    /// Retry the current level with the same order
-    /// </summary>
+
     private IEnumerator RetryCurrentLevel()
     {
-        yield return new WaitForSeconds(2f); // Show failure briefly
-        
-        // Restart the same order
-        StartPizzaOrder(currentOrder);
+        yield return new WaitForSeconds(1.2f);
+        PromoteAndPrepareNext();
     }
-    
-    /// <summary>
-    /// Get the types of ingredients needed for the current pizza order
-    /// Used by grid manager to spawn appropriate ingredient tiles
-    /// </summary>
+
     public List<Tile.TileType> GetRequiredIngredientTypes()
     {
         List<Tile.TileType> requiredTypes = new List<Tile.TileType>();
-        
         if (currentOrder != null && currentOrder.requiredIngredients != null)
         {
-            foreach (var requirement in currentOrder.requiredIngredients)
-            {
-                if (!requiredTypes.Contains(requirement.ingredientType))
-                {
-                    requiredTypes.Add(requirement.ingredientType);
-                }
-            }
+            foreach (var r in currentOrder.requiredIngredients)
+                if (!requiredTypes.Contains(r.ingredientType))
+                    requiredTypes.Add(r.ingredientType);
         }
-        
         return requiredTypes;
     }
-    
-    /// <summary>
-    /// Get current order completion progress (0-1)
-    /// </summary>
+
     public float GetCurrentProgress()
     {
         if (currentOrder == null) return 0f;
         return currentOrder.GetCompletionProgress(collectedIngredients);
     }
-    
-    /// <summary>
-    /// Add a pizza order to the available orders list
-    /// </summary>
+
     public void AddAvailablePizzaOrder(PizzaOrder order)
     {
         if (order != null && !availablePizzaOrders.Contains(order))
-        {
             availablePizzaOrders.Add(order);
-        }
     }
-    
-    /// <summary>
-    /// Add extra time to the current pizza order (for power-up integration)
-    /// </summary>
+
     public void AddExtraTime(float extraSeconds)
     {
         if (isOrderActive && !orderCompleted)
-        {
             remainingTime += extraSeconds;
-            Debug.Log($"Added {extraSeconds} seconds to current pizza order. New time: {remainingTime:F1}s");
-        }
     }
-    
-    /// <summary>
-    /// Add money to the total and trigger animation
-    /// </summary>
+
     private void AddMoney(int amount)
     {
         totalMoney += amount;
         OnMoneyChanged?.Invoke(totalMoney);
-        
-        // Trigger cash flow animation if available
         if (cashFlowAnimator != null)
         {
-            // Get customer position (approximate screen center for now)
-            Vector3 customerPosition = Camera.main != null ? Camera.main.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 10f)) : Vector3.zero;
-            cashFlowAnimator.AnimateMoneyCollection(customerPosition, amount);
+            Vector3 pos = Camera.main != null
+                ? Camera.main.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 10f))
+                : Vector3.zero;
+            cashFlowAnimator.AnimateMoneyCollection(pos, amount);
         }
-        
-        Debug.Log($"Money earned: ${amount}. Total: ${totalMoney}");
     }
-    
+
+    public void SpendMoney(int amount)
+    {
+        totalMoney -= amount;
+        OnMoneyChanged?.Invoke(totalMoney);
+    }
+
     void OnDestroy()
     {
-        // Clean up event subscriptions
         if (gridManager != null)
-        {
             gridManager.OnTilesCleared -= OnTilesCleared;
-        }
     }
 }

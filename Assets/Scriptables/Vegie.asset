@@ -27,12 +27,12 @@ MonoBehaviour:
     requiredAmount: 2
   - ingredientType: 6
     requiredAmount: 2
-  - ingredientType: 6
+  - ingredientType: 5
     requiredAmount: 2
   timeLimit: 120
   difficultyLevel: 1
   baseReward: 200
   timeBonus: 100
-  price: 6
+  price: 8
   patienceLevel: 1
   customerMoodColor: {r: 1, g: 1, b: 1, a: 1}

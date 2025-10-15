@@ -35,7 +35,8 @@ public class Tile : MonoBehaviour
         Pepper,     // Green bell peppers
         Onion,      // Purple/white onions
         Olives,     // Black/green olives
-        
+        Butter,     // Yellow butter pats
+
         // Special tile types (power-ups)
         Bomb,       // Destroys 3x3 area around it
         Rainbow,    // Matches with any ingredient type

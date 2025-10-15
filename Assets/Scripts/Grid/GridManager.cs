@@ -62,7 +62,7 @@ public class GridManager : MonoBehaviour
     void Start()
     {
         // Pizza sipariþinin baþlatýlmasýný bekle
-        StartCoroutine(InitializeGridWhenReady());
+        //StartCoroutine(InitializeGridWhenReady());
     }
 
     /// <summary>
@@ -1160,16 +1160,10 @@ public class GridManager : MonoBehaviour
         {
             foreach (Tile tile in tilesToDestroy)
             {
-                if (tile != null)
+                if (tile != null && IsValidPosition(tile.gridX, tile.gridY) && grid[tile.gridX, tile.gridY] == tile)
                 {
-                    int x = tile.gridX;
-                    int y = tile.gridY;
-
-                    if (IsValidPosition(x, y) && grid[x, y] == tile)
-                    {
-                        Destroy(tile.gameObject);
-                        grid[x, y] = null;
-                    }
+                    Destroy(tile.gameObject);
+                    grid[tile.gridX, tile.gridY] = null;
                 }
             }
 
@@ -1264,5 +1258,30 @@ public class GridManager : MonoBehaviour
         DOTween.Sequence()
             .AppendInterval(delayBetweenActions)
             .OnComplete(() => DropTilesWithAnimation());
+    }
+
+    /// <summary>
+    /// Her yeni pizza sipariþi için grid'i sýfýrla
+    /// </summary>
+    public void ResetGridForNewOrder()
+    {
+        // Mevcut grid'i temizle
+        if (grid != null)
+        {
+            for (int x = 0; x < gridWidth; x++)
+            {
+                for (int y = 0; y < gridHeight; y++)
+                {
+                    if (grid[x, y] != null)
+                    {
+                        Destroy(grid[x, y].gameObject);
+                        grid[x, y] = null; // Array'i de temizle
+                    }
+                }
+            }
+        }
+
+        // Yeni grid oluþtur
+        InitializeGrid();
     }
 }
