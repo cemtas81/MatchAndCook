@@ -3,6 +3,12 @@ A mobile-optimized match-3 cooking game built in Unity.
 
 ## Features
 
+### Ingredient Warning System ✨ NEW
+- **Grace Period**: 30-second countdown when ingredients are insufficient
+- **Visual Warning**: Clear warning panel with timer display
+- **Smart Resolution**: Order continues if ingredients are gathered in time
+- **Fair Gameplay**: Prevents instant order failures
+
 ### Session-Based Progression ✨ NEW
 - **Session System**: 10 pizzas per session with increasing difficulty
 - **Dynamic Difficulty**: Time reduces by 10% each session
@@ -71,18 +77,19 @@ Assets/
 2. Run `SetupHelper.cs` to auto-generate scene objects
 3. Add `SessionManager` component to GameManager GameObject
 4. Add `CashFlowAnimator` component to UI Canvas
-5. Configure PizzaOrder assets with `price` values
-6. Build and run on mobile device or simulator
-7. Replace placeholder sprites in Assets/Sprites/ with final artwork
+5. Add `IngredientWarningTimer` component to GameManager GameObject
+6. Add `IngredientWarningPanel` component to UI Canvas
+7. Configure PizzaOrder assets with `price` values
+8. Build and run on mobile device or simulator
+9. Replace placeholder sprites in Assets/Sprites/ with final artwork
 
 ## Implementation Details
 
-See [IMPLEMENTATION_SESSION_MONEY.md](IMPLEMENTATION_SESSION_MONEY.md) for detailed documentation on:
-- Session system architecture
-- Money system flow
-- Dynamic ingredient spawning
-- Integration guide
-- Setup instructions
+See documentation for detailed implementation guides:
+- [INGREDIENT_WARNING_SYSTEM.md](INGREDIENT_WARNING_SYSTEM.md) - Warning system architecture and setup
+- [CODE_OPTIMIZATION_SUMMARY.md](CODE_OPTIMIZATION_SUMMARY.md) - Performance optimizations
+- [IMPLEMENTATION_SESSION_MONEY.md](IMPLEMENTATION_SESSION_MONEY.md) - Session and money systems
+
 
 ## Ready for Expansion
 
