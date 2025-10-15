@@ -3,8 +3,8 @@ using System.Linq;
 using UnityEngine;
 
 /// <summary>
-/// Basit ve efektif malzeme stoðu ve ticaret sistemi
-/// Her malzemeden baþlangýçta 10 birim, 10'ar birim satýn alma
+/// Basit ve efektif malzeme stoï¿½u ve ticaret sistemi
+/// Her malzemeden baï¿½langï¿½ï¿½ta 10 birim, 10'ar birim satï¿½n alma
 /// 8 malzeme: Tomato, Cheese, Butter, Pepperoni, Mushroom, Pepper, Onion, Olives
 /// </summary>
 public class MaterialStockManager : MonoBehaviour
@@ -19,19 +19,19 @@ public class MaterialStockManager : MonoBehaviour
     [SerializeField] private int butterPrice = 100;
     [SerializeField] private int pepperoniPrice = 125;
     [SerializeField] private int mushroomPrice = 150;
-    [SerializeField] private int pepperPrice = 60;     // YENÝ
-    [SerializeField] private int onionPrice = 80;      // YENÝ  
-    [SerializeField] private int olivesPrice = 120;    // YENÝ
+    [SerializeField] private int pepperPrice = 60;     // YENï¿½
+    [SerializeField] private int onionPrice = 80;      // YENï¿½  
+    [SerializeField] private int olivesPrice = 120;    // YENï¿½
 
     // Stok durumu
     private Dictionary<Tile.TileType, int> materialStock = new Dictionary<Tile.TileType, int>();
     private Dictionary<Tile.TileType, int> materialPrices = new Dictionary<Tile.TileType, int>();
-    // Satýn alma takibi için
+    // Satï¿½n alma takibi iï¿½in
     private Dictionary<Tile.TileType, int> purchaseCount = new Dictionary<Tile.TileType, int>();
 
     // Events
     public System.Action<Tile.TileType, int> OnStockChanged;
-    public System.Action<string> OnPurchaseResult; // Baþarý/hata mesajý
+    public System.Action<string> OnPurchaseResult; // Baï¿½arï¿½/hata mesajï¿½
 
     // References
     private PizzaOrderManager pizzaOrderManager;
@@ -44,7 +44,7 @@ public class MaterialStockManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Baþlangýç stoðunu ayarla - sadece 8 malzeme için
+    /// Baï¿½langï¿½ï¿½ stoï¿½unu ayarla - sadece 8 malzeme iï¿½in
     /// </summary>
     private void InitializeStock()
     {
@@ -58,7 +58,7 @@ public class MaterialStockManager : MonoBehaviour
         materialStock[Tile.TileType.Onion] = initialStock;
         materialStock[Tile.TileType.Olives] = initialStock;
 
-        // Satýn alma sayaçlarýný baþlat
+        // Satï¿½n alma sayaï¿½larï¿½nï¿½ baï¿½lat
         purchaseCount[Tile.TileType.Tomato] = 0;
         purchaseCount[Tile.TileType.Cheese] = 0;
         purchaseCount[Tile.TileType.Butter] = 0;
@@ -70,7 +70,7 @@ public class MaterialStockManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Malzeme fiyatlarýný ayarla - 8 malzeme
+    /// Malzeme fiyatlarï¿½nï¿½ ayarla - 8 malzeme
     /// </summary>
     private void InitializePrices()
     {
@@ -79,13 +79,13 @@ public class MaterialStockManager : MonoBehaviour
         materialPrices[Tile.TileType.Butter] = butterPrice;
         materialPrices[Tile.TileType.Pepperoni] = pepperoniPrice;
         materialPrices[Tile.TileType.Mushroom] = mushroomPrice;
-        materialPrices[Tile.TileType.Pepper] = pepperPrice;     // YENÝ
-        materialPrices[Tile.TileType.Onion] = onionPrice;       // YENÝ
-        materialPrices[Tile.TileType.Olives] = olivesPrice;     // YENÝ
+        materialPrices[Tile.TileType.Pepper] = pepperPrice;     // YENï¿½
+        materialPrices[Tile.TileType.Onion] = onionPrice;       // YENï¿½
+        materialPrices[Tile.TileType.Olives] = olivesPrice;     // YENï¿½
     }
 
     /// <summary>
-    /// Malzeme satýn al
+    /// Malzeme satï¿½n al
     /// </summary>
     public void PurchaseMaterial(Tile.TileType materialType)
     {
@@ -93,33 +93,18 @@ public class MaterialStockManager : MonoBehaviour
 
         int price = materialPrices[materialType];
         int currentMoney = pizzaOrderManager?.TotalMoney ?? 0;
-        
-        Debug.Log($"Satýn alýnýyor: {materialType}, Fiyat: {price}, Mevcut Para: {currentMoney}");
 
         if (currentMoney >= price)
         {
-            int previousMoney = currentMoney;
-            
-            // Para düþ
+            // Para dï¿½ï¿½
             pizzaOrderManager.SpendMoney(price);
-            int moneySpent = previousMoney - pizzaOrderManager.TotalMoney;
             
-            Debug.Log($"Para düþüldü. Fark: {moneySpent} (Beklenen: {price}), Yeni para: {pizzaOrderManager.TotalMoney}");
-            
-            if (moneySpent != price) {
-                Debug.LogWarning($"UYARI: {materialType} için harcanmasý gereken para ({price}) ile düþülen para ({moneySpent}) farklý!");
-            }
-            
-            // Satýn alma sayacýný artýr
+            // Satï¿½n alma sayacï¿½nï¿½ artï¿½r ve stok ekle
             purchaseCount[materialType]++;
-            
-            // Stok ekle
             materialStock[materialType] += purchaseAmount;
-            OnStockChanged?.Invoke(materialType, materialStock[materialType]);
-            OnPurchaseResult?.Invoke($"+{purchaseAmount} {materialType} satýn alýndý!");
             
-            // Satýn alma özeti
-            LogPurchaseSummary();
+            OnStockChanged?.Invoke(materialType, materialStock[materialType]);
+            OnPurchaseResult?.Invoke($"+{purchaseAmount} {materialType} satï¿½n alï¿½ndï¿½!");
         }
         else
         {
@@ -128,7 +113,7 @@ public class MaterialStockManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Stok kontrolü - sipariþ yapýlabilir mi?
+    /// Stok kontrolï¿½ - sipariï¿½ yapï¿½labilir mi?
     /// </summary>
     public bool CanFulfillOrder(PizzaOrder order)
     {
@@ -146,7 +131,7 @@ public class MaterialStockManager : MonoBehaviour
     }
 
     /// <summary>               
-    /// Sipariþ için malzeme harca
+    /// Sipariï¿½ iï¿½in malzeme harca
     /// </summary>
     public void ConsumeIngredients(PizzaOrder order)
     {
@@ -160,7 +145,7 @@ public class MaterialStockManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Malzeme stoðunu getir
+    /// Malzeme stoï¿½unu getir
     /// </summary>
     public int GetStock(Tile.TileType materialType)
     {
@@ -168,7 +153,7 @@ public class MaterialStockManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Malzeme fiyatýný getir
+    /// Malzeme fiyatï¿½nï¿½ getir
     /// </summary>
     public int GetPrice(Tile.TileType materialType)
     {
@@ -176,7 +161,7 @@ public class MaterialStockManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Tüm stok durumunu getir (sadece pizza malzemeleri)
+    /// Tï¿½m stok durumunu getir (sadece pizza malzemeleri)
     /// </summary>
     public Dictionary<Tile.TileType, int> GetAllStock()
     {
@@ -192,7 +177,7 @@ public class MaterialStockManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Tüm pizza malzemelerini getir (8 adet)
+    /// Tï¿½m pizza malzemelerini getir (8 adet)
     /// </summary>
     public List<Tile.TileType> GetAllPizzaIngredients()
     {
@@ -209,36 +194,33 @@ public class MaterialStockManager : MonoBehaviour
         };
     }
 
-    // Satýn alma özetini göster
+    // Satï¿½n alma ï¿½zetini gï¿½ster
     private void LogPurchaseSummary()
     {
         System.Text.StringBuilder builder = new System.Text.StringBuilder();
-        builder.AppendLine("---- MALZEME SATIN ALMA ÖZETÝ ----");
+        builder.AppendLine("---- MALZEME SATIN ALMA ï¿½ZETï¿½ ----");
+        
+        int totalItems = 0;
+        int totalSpent = 0;
         
         foreach (var item in purchaseCount)
         {
             if (item.Value > 0)
             {
-                int totalCost = item.Value * materialPrices[item.Key];
-                builder.AppendLine($"{item.Key}: {item.Value} kez satýn alýndý (her biri {materialPrices[item.Key]}$ - toplam {totalCost}$)");
+                int itemCost = item.Value * materialPrices[item.Key];
+                totalSpent += itemCost;
+                totalItems += item.Value;
+                builder.AppendLine($"{item.Key}: {item.Value} kez satï¿½n alï¿½ndï¿½ (her biri {materialPrices[item.Key]}$ - toplam {itemCost}$)");
             }
         }
         
-        int totalItems = purchaseCount.Values.Sum();
-        int totalSpent = 0;
-        
-        foreach (var type in purchaseCount.Keys)
-        {
-            totalSpent += purchaseCount[type] * materialPrices[type];
-        }
-        
-        builder.AppendLine($"TOPLAM: {totalItems} satýn alým, {totalSpent}$ harcandý");
+        builder.AppendLine($"TOPLAM: {totalItems} satï¿½n alï¿½m, {totalSpent}$ harcandï¿½");
         builder.AppendLine("----------------------------------");
         
         Debug.Log(builder.ToString());
     }
 
-    // Toplam satýn alma maliyetini hesapla
+    // Toplam satï¿½n alma maliyetini hesapla
     public int GetTotalPurchaseCost()
     {
         int total = 0;

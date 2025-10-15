@@ -274,9 +274,6 @@ public class PizzaOrderManager : MonoBehaviour
         orderCompleted = true;
         isOrderActive = false;
 
-        float completionTime = Time.time - orderStartTime;
-        int reward = currentOrder.CalculateReward(completionTime);
-
         int moneyEarned = currentOrder.price;
         AddMoney(moneyEarned);
 
