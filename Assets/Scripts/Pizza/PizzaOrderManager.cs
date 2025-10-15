@@ -81,8 +81,8 @@ public class PizzaOrderManager : MonoBehaviour
         warningTimer = FindFirstObjectByType<IngredientWarningTimer>();
         warningPanel = FindFirstObjectByType<IngredientWarningPanel>();
 
-        if (availablePizzaOrders.Count == 0)
-            availablePizzaOrders = SamplePizzaOrders.GetAllSampleOrders();
+        //if (availablePizzaOrders.Count == 0)
+        //    availablePizzaOrders = SamplePizzaOrders.GetAllSampleOrders();
 
         if (gridManager != null)
             gridManager.OnTilesCleared += OnTilesCleared;
