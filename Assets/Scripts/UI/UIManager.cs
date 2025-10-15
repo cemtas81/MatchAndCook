@@ -222,10 +222,6 @@ public class UIManager : MonoBehaviour
                 {
                     fillImage.color = Color.Lerp(Color.yellow, winColor, (normalizedProgress - 0.75f) * 4f);
                 }
-                else if (normalizedProgress >= 0.5f)
-                {
-                    fillImage.color = Color.yellow;
-                }
                 else
                 {
                     fillImage.color = Color.yellow;

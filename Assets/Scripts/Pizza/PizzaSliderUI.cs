@@ -235,9 +235,7 @@ public class PizzaSliderUI : MonoBehaviour
         // Add pulsing effect when time is urgent
         if (remainingTime <= urgentTimeThreshold && remainingTime > 0f)
         {
-
-            if (timerText.transform.localScale==new Vector3(1,1,1))
-
+            if (timerText.transform.localScale == Vector3.one)
             {
                 timerText.transform.DOScale(1.1f, 0.5f)
                     .SetLoops(-1, LoopType.Yoyo)

@@ -25,6 +25,7 @@ public class PizzaOrderManager : MonoBehaviour
     private float remainingTime;
     private bool isOrderActive = false;
     private bool orderCompleted = false;
+    private bool isWaitingForIngredients = false;
 
     // Star system: +1 star after every 2 consecutive successes
     private int successSinceLastStar = 0;
@@ -46,6 +47,8 @@ public class PizzaOrderManager : MonoBehaviour
     private CashFlowAnimator cashFlowAnimator;
     private MaterialStockManager stockManager;
     private RestaurantStarManager starManager;
+    private IngredientWarningTimer warningTimer;
+    private IngredientWarningPanel warningPanel;
 
     // Properties
     public PizzaOrder CurrentOrder => currentOrder;
@@ -64,6 +67,7 @@ public class PizzaOrderManager : MonoBehaviour
     void Update()
     {
         UpdateOrderTimer();
+        CheckAndResolveWarning();
     }
 
     private void Initialize()
@@ -74,12 +78,20 @@ public class PizzaOrderManager : MonoBehaviour
         cashFlowAnimator = FindFirstObjectByType<CashFlowAnimator>();
         stockManager = FindFirstObjectByType<MaterialStockManager>();
         starManager = FindFirstObjectByType<RestaurantStarManager>();
+        warningTimer = FindFirstObjectByType<IngredientWarningTimer>();
+        warningPanel = FindFirstObjectByType<IngredientWarningPanel>();
 
         if (availablePizzaOrders.Count == 0)
             availablePizzaOrders = SamplePizzaOrders.GetAllSampleOrders();
 
         if (gridManager != null)
             gridManager.OnTilesCleared += OnTilesCleared;
+
+        if (warningTimer != null)
+        {
+            warningTimer.OnWarningExpired += OnIngredientWarningExpired;
+            warningTimer.OnWarningResolved += OnIngredientWarningResolved;
+        }
 
         InitIngredientDictionary();
         PrepareInitialOrders();
@@ -115,45 +127,10 @@ public class PizzaOrderManager : MonoBehaviour
     private void PrepareInitialOrders()
     {
         var suitable = GetLevelSuitable();
-        List<PizzaOrder> fulfillable = new List<PizzaOrder>();
-        if (stockManager != null)
-        {
-            foreach (var o in suitable)
-                if (stockManager.CanFulfillOrder(o))
-                    fulfillable.Add(o);
-        }
-
-        if (fulfillable.Count == 0)
-        {
-            currentOrder = null;
-            nextOrder = PickRandom(suitable);
-            OnNextOrderPrepared?.Invoke(nextOrder);
-            StartCoroutine(WaitForFulfillableAndStart());
-            return;
-        }
-
-        currentOrder = PickRandom(fulfillable);
+        currentOrder = PickRandom(suitable);
         nextOrder = PickRandom(suitable);
         StartPizzaOrder(currentOrder);
         OnNextOrderPrepared?.Invoke(nextOrder);
-    }
-
-    private IEnumerator WaitForFulfillableAndStart()
-    {
-        while (currentOrder == null)
-        {
-            yield return new WaitForSeconds(2f);
-            var suitable = GetLevelSuitable();
-            List<PizzaOrder> fulfillable = new List<PizzaOrder>();
-            foreach (var o in suitable)
-                if (stockManager == null || stockManager.CanFulfillOrder(o))
-                    fulfillable.Add(o);
-            if (fulfillable.Count > 0)
-            {
-                currentOrder = PickRandom(fulfillable);
-                StartPizzaOrder(currentOrder);
-            }
-        }
     }
 
     private void PromoteAndPrepareNext()
@@ -162,25 +139,11 @@ public class PizzaOrderManager : MonoBehaviour
 
         if (nextOrder != null)
         {
-            if (stockManager != null && !stockManager.CanFulfillOrder(nextOrder))
-            {
-                List<PizzaOrder> fulfillable = new List<PizzaOrder>();
-                foreach (var o in suitable)
-                    if (stockManager.CanFulfillOrder(o))
-                        fulfillable.Add(o);
-
-                if (fulfillable.Count > 0)
-                    currentOrder = PickRandom(fulfillable);
-                else
-                {
-                    currentOrder = null;
-                    StartCoroutine(WaitForFulfillableAndStart());
-                }
-            }
-            else
-            {
-                currentOrder = nextOrder;
-            }
+            currentOrder = nextOrder;
+        }
+        else
+        {
+            currentOrder = PickRandom(suitable);
         }
 
         nextOrder = PickRandom(suitable);
@@ -194,13 +157,6 @@ public class PizzaOrderManager : MonoBehaviour
     {
         if (order == null) return;
 
-        if (stockManager != null && !stockManager.CanFulfillOrder(order))
-        {
-            currentOrder = null;
-            StartCoroutine(WaitForFulfillableAndStart());
-            return;
-        }
-
         currentOrder = order;
         orderStartTime = Time.time;
 
@@ -211,19 +167,44 @@ public class PizzaOrderManager : MonoBehaviour
         remainingTime = Mathf.Max(30f, order.timeLimit * timeMultiplier);
         isOrderActive = true;
         orderCompleted = false;
+        isWaitingForIngredients = false;
         InitIngredientDictionary();
 
         gridManager?.ResetGridForNewOrder();
 
-        OnOrderStarted?.Invoke(currentOrder);
-        OnOrderProgressChanged?.Invoke(0f);
-
-        Debug.Log($"New order: {order.pizzaName}");
+        // Check if ingredients are available
+        if (stockManager != null && !stockManager.CanFulfillOrder(order))
+        {
+            // Start warning timer for ingredient gathering
+            isWaitingForIngredients = true;
+            warningTimer?.StartWarningTimer();
+            warningPanel?.ShowWarning("Malzemeler eksik! Lütfen topla!");
+            
+            Debug.Log($"Order started with insufficient ingredients: {order.pizzaName}. Warning timer activated.");
+        }
+        else
+        {
+            // Normal order start
+            OnOrderStarted?.Invoke(currentOrder);
+            OnOrderProgressChanged?.Invoke(0f);
+            Debug.Log($"New order: {order.pizzaName}");
+        }
     }
 
     private void UpdateOrderTimer()
     {
         if (!isOrderActive || orderCompleted) return;
+
+        // If waiting for ingredients, don't decrease main timer
+        if (isWaitingForIngredients)
+        {
+            // Update warning panel with timer
+            if (warningTimer != null && warningPanel != null)
+            {
+                warningPanel.UpdateWarningTimer(warningTimer.RemainingWarningTime);
+            }
+            return;
+        }
 
         remainingTime -= Time.deltaTime;
         OnOrderTimeChanged?.Invoke(remainingTime);
@@ -292,9 +273,6 @@ public class PizzaOrderManager : MonoBehaviour
 
         orderCompleted = true;
         isOrderActive = false;
-
-        float completionTime = Time.time - orderStartTime;
-        int reward = currentOrder.CalculateReward(completionTime);
 
         int moneyEarned = currentOrder.price;
         AddMoney(moneyEarned);
@@ -398,9 +376,55 @@ public class PizzaOrderManager : MonoBehaviour
         OnMoneyChanged?.Invoke(totalMoney);
     }
 
+    /// <summary>
+    /// Handle warning timer expiration - fail the order
+    /// </summary>
+    private void OnIngredientWarningExpired()
+    {
+        Debug.Log("Ingredient warning expired - order failed");
+        warningPanel?.HideWarning();
+        FailCurrentOrder();
+    }
+
+    /// <summary>
+    /// Handle warning resolution - ingredients gathered, continue normally
+    /// </summary>
+    private void OnIngredientWarningResolved()
+    {
+        Debug.Log("Ingredients gathered - order proceeding normally");
+        isWaitingForIngredients = false;
+        warningPanel?.HideWarning();
+        
+        // Now start the order properly
+        if (currentOrder != null)
+        {
+            OnOrderStarted?.Invoke(currentOrder);
+            OnOrderProgressChanged?.Invoke(0f);
+        }
+    }
+
+    /// <summary>
+    /// Check if ingredients became available and resolve warning
+    /// </summary>
+    private void CheckAndResolveWarning()
+    {
+        if (!isWaitingForIngredients || currentOrder == null) return;
+        
+        if (stockManager != null && stockManager.CanFulfillOrder(currentOrder))
+        {
+            warningTimer?.ResolveWarning();
+        }
+    }
+
     void OnDestroy()
     {
         if (gridManager != null)
             gridManager.OnTilesCleared -= OnTilesCleared;
+
+        if (warningTimer != null)
+        {
+            warningTimer.OnWarningExpired -= OnIngredientWarningExpired;
+            warningTimer.OnWarningResolved -= OnIngredientWarningResolved;
+        }
     }
 }

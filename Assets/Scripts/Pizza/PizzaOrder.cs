@@ -96,16 +96,10 @@ public class PizzaIngredientRequirement
     [Header("Ingredient Details")]
     public Tile.TileType ingredientType; // Which pizza ingredient is needed
     public int requiredAmount; // How many matches are needed
-    //public string ingredientDisplayName; // User-friendly name (e.g., "Fresh Tomatoes")
 
-    //[Header("Visual Settings")]
-    //public Sprite ingredientIcon; // Icon to show in UI
-    //public Color ingredientColor = Color.white; // Color for progress indicators
-
-    public PizzaIngredientRequirement(Tile.TileType type, int amount, string displayName)
+    public PizzaIngredientRequirement(Tile.TileType type, int amount)
     {
         ingredientType = type;
         requiredAmount = amount;
-        //ingredientDisplayName = displayName;
     }
 }
