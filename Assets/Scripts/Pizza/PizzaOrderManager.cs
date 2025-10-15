@@ -59,6 +59,8 @@ public class PizzaOrderManager : MonoBehaviour
     public Dictionary<Tile.TileType, int> CollectedIngredients => collectedIngredients;
     public int TotalMoney => totalMoney;
 
+    [SerializeField] private GameObject blockInputPanel; // Inspector'dan atayın
+
     void Start()
     {
         Initialize();
@@ -179,7 +181,11 @@ public class PizzaOrderManager : MonoBehaviour
             isWaitingForIngredients = true;
             warningTimer?.StartWarningTimer();
             warningPanel?.ShowWarning("Malzemeler eksik! Lütfen topla!");
-            
+
+            // Dokunma engel panelini aç
+            if (blockInputPanel != null)
+                blockInputPanel.SetActive(true);
+
             Debug.Log($"Order started with insufficient ingredients: {order.pizzaName}. Warning timer activated.");
         }
         else
@@ -394,12 +400,22 @@ public class PizzaOrderManager : MonoBehaviour
         Debug.Log("Ingredients gathered - order proceeding normally");
         isWaitingForIngredients = false;
         warningPanel?.HideWarning();
-        
-        // Now start the order properly
+
+        // Siparişi ve ana timerı tekrar başlat
         if (currentOrder != null)
         {
+            orderStartTime = Time.time;
+            float timeMultiplier = sessionManager != null
+                ? sessionManager.CurrentTimeMultiplier
+                : Mathf.Pow(timeScalingFactor, currentLevel - 1);
+
+            remainingTime = Mathf.Max(30f, currentOrder.timeLimit * timeMultiplier);
+            isOrderActive = true;
+            orderCompleted = false;
+
             OnOrderStarted?.Invoke(currentOrder);
             OnOrderProgressChanged?.Invoke(0f);
+            Debug.Log($"Order resumed: {currentOrder.pizzaName}");
         }
     }
 
@@ -409,7 +425,7 @@ public class PizzaOrderManager : MonoBehaviour
     private void CheckAndResolveWarning()
     {
         if (!isWaitingForIngredients || currentOrder == null) return;
-        
+
         if (stockManager != null && stockManager.CanFulfillOrder(currentOrder))
         {
             warningTimer?.ResolveWarning();
