@@ -12,9 +12,10 @@ public class SessionManager : MonoBehaviour
     [SerializeField] private int pizzasPerSession = 10;
     [SerializeField] private float timeReductionPerSession = 0.9f; // 10% time reduction each session
     
-    [Header("Current Session State")]
+    [Header("Session State")]
     [SerializeField] private int currentSession = 1;
     [SerializeField] private int pizzasCompletedInSession = 0;
+    [SerializeField] private int failedOrdersInSession = 0; // Baþarýsýz sipariþlerin sayýsý
     
     // Events
     public System.Action<int> OnSessionStarted;
@@ -24,6 +25,7 @@ public class SessionManager : MonoBehaviour
     // Properties
     public int CurrentSession => currentSession;
     public int PizzasCompletedInSession => pizzasCompletedInSession;
+    public int FailedOrdersInSession => failedOrdersInSession;
     public int PizzasPerSession => pizzasPerSession;
     public float CurrentTimeMultiplier => Mathf.Pow(timeReductionPerSession, currentSession - 1);
     
@@ -38,9 +40,10 @@ public class SessionManager : MonoBehaviour
     private void StartNewSession()
     {
         pizzasCompletedInSession = 0;
+        failedOrdersInSession = 0; // Reset failed orders
         OnSessionStarted?.Invoke(currentSession);
         
-        Debug.Log($"Session {currentSession} started! Complete {pizzasPerSession} pizzas. Time multiplier: {CurrentTimeMultiplier:F2}");
+        //Debug.Log($"Session {currentSession} started! Complete {pizzasPerSession} pizzas. Time multiplier: {CurrentTimeMultiplier:F2}");
     }
     
     /// <summary>
@@ -53,13 +56,19 @@ public class SessionManager : MonoBehaviour
             pizzasCompletedInSession++;
             OnSessionProgress?.Invoke(pizzasCompletedInSession, pizzasPerSession);
             
-            Debug.Log($"Pizza {pizzasCompletedInSession}/{pizzasPerSession} completed in session {currentSession}");
+            //Debug.Log($"Pizza {pizzasCompletedInSession}/{pizzasPerSession} completed in session {currentSession}");
             
             // Check if session is complete
             if (pizzasCompletedInSession >= pizzasPerSession)
             {
                 CompleteSession();
             }
+        }
+        else
+        {
+            // Baþarýsýz sipariþi kaydet
+            failedOrdersInSession++;
+            //Debug.Log($"Pizza order failed. Total failed in session: {failedOrdersInSession}");
         }
     }
     
@@ -68,11 +77,24 @@ public class SessionManager : MonoBehaviour
     /// </summary>
     private void CompleteSession()
     {
+        // Fire event to show session panel
         OnSessionCompleted?.Invoke(currentSession);
         
-        Debug.Log($"Session {currentSession} completed! Starting session {currentSession + 1}");
+        //Debug.Log($"Session {currentSession} completed! Starting session {currentSession + 1}");
         
+        // Session number is increased but new session is not started immediately
+        // It will start when the player clicks continue
         currentSession++;
+        
+        // Don't call StartNewSession() here - it will be implicitly called when continuing
+    }
+    
+    /// <summary>
+    /// Continue to the next session (called by UI)
+    /// </summary>
+    public void ContinueToNextSession()
+    {
+        // Start the new session
         StartNewSession();
     }
     
@@ -91,6 +113,7 @@ public class SessionManager : MonoBehaviour
     {
         currentSession = 1;
         pizzasCompletedInSession = 0;
+        failedOrdersInSession = 0;
         StartNewSession();
     }
 }

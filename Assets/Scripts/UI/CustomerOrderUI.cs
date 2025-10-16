@@ -5,42 +5,51 @@ using TMPro;
 using DG.Tweening;
 
 /// <summary>
-/// UI component for displaying customer orders in the corner of the screen.
+/// UI component for displaying current and next pizza orders.
 /// Shows customer avatar, order details, timer, and satisfaction level.
 /// </summary>
 public class CustomerOrderUI : MonoBehaviour
 {
-    [Header("Customer Order Panel")]
+    [Header("Current Order Panel")]
     [SerializeField] private Transform orderContainer;
     [SerializeField] private GameObject customerOrderPrefab;
     [SerializeField] private int maxVisibleOrders = 3;
-    
+
+    [Header("Next Pizza Preview")]
+    [SerializeField] private GameObject nextPizzaPanel;
+    [SerializeField] private TextMeshProUGUI nextPizzaNameText;
+    [SerializeField] private TextMeshProUGUI nextPizzaDescriptionText;
+    [SerializeField] private Image nextPizzaIcon;
+    [SerializeField] private Transform nextPizzaIngredientContainer;
+    [SerializeField] private TextMeshProUGUI nextPizzaIngredientText;
+
     [Header("Animation Settings")]
     [SerializeField] private float orderAppearDuration = 0.5f;
     [SerializeField] private float orderDisappearDuration = 0.3f;
-    [SerializeField] private float urgentPulseDuration = 1f;
-    
+
     [Header("Colors")]
     [SerializeField] private Color normalColor = Color.white;
     [SerializeField] private Color urgentColor = Color.red;
     [SerializeField] private Color completedColor = Color.green;
-    
+
     // Current state
     private List<CustomerOrderItemUI> orderItems = new List<CustomerOrderItemUI>();
     private CustomerManager customerManager;
-    
+    private PizzaOrderManager pizzaOrderManager;
+
     void Start()
     {
-        InitializeCustomerOrderUI();
+        InitializeUI();
     }
-    
+
     /// <summary>
-    /// Initialize customer order UI and find references
+    /// Initialize UI and find references
     /// </summary>
-    private void InitializeCustomerOrderUI()
+    private void InitializeUI()
     {
+        // Initialize customer order UI
         customerManager = FindFirstObjectByType<CustomerManager>();
-        
+
         if (customerManager != null)
         {
             customerManager.OnOrderStarted += OnOrderStarted;
@@ -48,8 +57,68 @@ public class CustomerOrderUI : MonoBehaviour
             customerManager.OnOrderExpired += OnOrderExpired;
             customerManager.OnOrderTimeUpdated += OnOrderTimeUpdated;
         }
+
+        // Initialize next pizza preview
+        pizzaOrderManager = FindFirstObjectByType<PizzaOrderManager>();
+
+        if (pizzaOrderManager != null)
+        {
+            // Subscribe to next order events
+            pizzaOrderManager.OnNextOrderPrepared += UpdateNextPizzaInfo;
+
+            // Initialize with current next order if available
+            if (pizzaOrderManager.NextOrder != null)
+            {
+                UpdateNextPizzaInfo(pizzaOrderManager.NextOrder);
+            }
+        }
     }
-    
+
+    /// <summary>
+    /// Update next pizza preview information
+    /// </summary>
+    private void UpdateNextPizzaInfo(PizzaOrder nextOrder)
+    {
+        if (nextOrder == null || nextPizzaPanel == null) return;
+
+        // Show panel
+        nextPizzaPanel.SetActive(true);
+
+        // Update pizza name
+        if (nextPizzaNameText != null)
+        {
+            nextPizzaNameText.text = nextOrder.pizzaName;
+        }
+
+        // Update pizza description
+        if (nextPizzaDescriptionText != null)
+        {
+            nextPizzaDescriptionText.text = nextOrder.orderDescription;
+        }
+
+        // Update pizza icon
+        if (nextPizzaIcon != null && nextOrder.customerAvatar != null)
+        {
+            nextPizzaIcon.sprite = nextOrder.customerAvatar;
+        }
+
+        // Update ingredient list
+        if (nextPizzaIngredientText != null)
+        {
+            string ingredientList = "Malzemeler:\n";
+            foreach (var ingredient in nextOrder.requiredIngredients)
+            {
+                ingredientList += $"- {ingredient.ingredientType} x{ingredient.requiredAmount}\n";
+            }
+            nextPizzaIngredientText.text = ingredientList;
+        }
+
+        // Add a small bounce animation for feedback
+        nextPizzaPanel.transform.DOPunchScale(Vector3.one * 0.1f, 0.3f, 5, 0.5f);
+    }
+
+    #region Customer Order Handling
+
     /// <summary>
     /// Handle new order started
     /// </summary>
@@ -57,7 +126,7 @@ public class CustomerOrderUI : MonoBehaviour
     {
         CreateOrderItem(order);
     }
-    
+
     /// <summary>
     /// Handle order completed
     /// </summary>
@@ -76,7 +145,7 @@ public class CustomerOrderUI : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Handle order expired
     /// </summary>
@@ -84,7 +153,7 @@ public class CustomerOrderUI : MonoBehaviour
     {
         // OnOrderCompleted will be called with success=false, so we don't need additional handling here
     }
-    
+
     /// <summary>
     /// Handle order time updated
     /// </summary>
@@ -94,7 +163,7 @@ public class CustomerOrderUI : MonoBehaviour
         if (item != null)
         {
             item.UpdateTimer(remainingTime, order.orderData.timeLimit);
-            
+
             // Check if order is urgent
             if (order.IsUrgent())
             {
@@ -102,14 +171,14 @@ public class CustomerOrderUI : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Create a new order item UI
     /// </summary>
     private void CreateOrderItem(ActiveCustomerOrder order)
     {
         if (customerOrderPrefab == null || orderContainer == null) return;
-        
+
         // Limit visible orders
         if (orderItems.Count >= maxVisibleOrders)
         {
@@ -119,33 +188,33 @@ public class CustomerOrderUI : MonoBehaviour
                 RemoveOrderItem(orderItems[0]);
             }
         }
-        
+
         GameObject itemObj = Instantiate(customerOrderPrefab, orderContainer);
         CustomerOrderItemUI itemUI = itemObj.GetComponent<CustomerOrderItemUI>();
-        
+
         if (itemUI == null)
         {
             itemUI = itemObj.AddComponent<CustomerOrderItemUI>();
         }
-        
+
         itemUI.Initialize(order, normalColor, urgentColor, completedColor);
         orderItems.Add(itemUI);
-        
+
         // Animate appearance
         itemUI.PlayAppearAnimation(orderAppearDuration);
     }
-    
+
     /// <summary>
     /// Remove an order item UI
     /// </summary>
     private void RemoveOrderItem(CustomerOrderItemUI item)
     {
         if (item == null) return;
-        
+
         orderItems.Remove(item);
         Destroy(item.gameObject);
     }
-    
+
     /// <summary>
     /// Find order item UI for a specific order
     /// </summary>
@@ -160,7 +229,9 @@ public class CustomerOrderUI : MonoBehaviour
         }
         return null;
     }
-    
+
+    #endregion
+
     void OnDestroy()
     {
         // Clean up events
@@ -170,6 +241,11 @@ public class CustomerOrderUI : MonoBehaviour
             customerManager.OnOrderCompleted -= OnOrderCompleted;
             customerManager.OnOrderExpired -= OnOrderExpired;
             customerManager.OnOrderTimeUpdated -= OnOrderTimeUpdated;
+        }
+
+        if (pizzaOrderManager != null)
+        {
+            pizzaOrderManager.OnNextOrderPrepared -= UpdateNextPizzaInfo;
         }
     }
 }
@@ -183,12 +259,10 @@ public class CustomerOrderItemUI : MonoBehaviour
     [SerializeField] private Image customerAvatar;
     [SerializeField] private TextMeshProUGUI customerNameText;
     [SerializeField] private TextMeshProUGUI orderDescriptionText;
-    [SerializeField] private Image recipeIcon;
     [SerializeField] private Slider timerSlider;
     [SerializeField] private TextMeshProUGUI timerText;
     [SerializeField] private Image backgroundImage;
-    [SerializeField] private Image satisfactionIndicator;
-    
+
     // State
     private ActiveCustomerOrder order;
     private Color normalColor;
@@ -196,9 +270,9 @@ public class CustomerOrderItemUI : MonoBehaviour
     private Color completedColor;
     private bool isUrgent = false;
     private Tween currentTween;
-    
+
     public ActiveCustomerOrder Order => order;
-    
+
     /// <summary>
     /// Initialize order item with data
     /// </summary>
@@ -208,49 +282,43 @@ public class CustomerOrderItemUI : MonoBehaviour
         normalColor = normal;
         urgentColor = urgent;
         completedColor = completed;
-        
+
         UpdateDisplay();
         InitializeTimer();
     }
-    
+
     /// <summary>
     /// Update display with order data
     /// </summary>
     private void UpdateDisplay()
     {
         if (order?.orderData == null) return;
-        
+
         // Update customer avatar
         if (customerAvatar != null && order.orderData.customerAvatar != null)
         {
             customerAvatar.sprite = order.orderData.customerAvatar;
         }
-        
+
         // Update customer name
         if (customerNameText != null)
         {
             customerNameText.text = order.orderData.customerName;
         }
-        
+
         // Update order description
         if (orderDescriptionText != null)
         {
             orderDescriptionText.text = order.orderData.orderDescription;
         }
-        
-        // Update recipe icon
-        if (recipeIcon != null && order.orderData.requestedRecipe?.recipeIcon != null)
-        {
-            recipeIcon.sprite = order.orderData.requestedRecipe.recipeIcon;
-        }
-        
+
         // Update background color
         if (backgroundImage != null)
         {
             backgroundImage.color = normalColor;
         }
     }
-    
+
     /// <summary>
     /// Initialize timer display
     /// </summary>
@@ -262,10 +330,10 @@ public class CustomerOrderItemUI : MonoBehaviour
             timerSlider.maxValue = order.orderData.timeLimit;
             timerSlider.value = order.remainingTime;
         }
-        
+
         UpdateTimerDisplay();
     }
-    
+
     /// <summary>
     /// Update timer display
     /// </summary>
@@ -276,7 +344,7 @@ public class CustomerOrderItemUI : MonoBehaviour
         {
             timerSlider.value = remainingTime;
         }
-        
+
         // Update timer text
         if (timerText != null)
         {
@@ -284,16 +352,8 @@ public class CustomerOrderItemUI : MonoBehaviour
             int seconds = Mathf.FloorToInt(remainingTime % 60f);
             timerText.text = $"{minutes:00}:{seconds:00}";
         }
-        
-        // Update satisfaction indicator
-        if (satisfactionIndicator != null)
-        {
-            float satisfaction = order.orderData.GetSatisfactionLevel(remainingTime);
-            Color moodColor = order.orderData.GetCustomerMoodColor(remainingTime);
-            satisfactionIndicator.color = moodColor;
-        }
     }
-    
+
     /// <summary>
     /// Update timer display (called from UpdateTimer)
     /// </summary>
@@ -301,16 +361,16 @@ public class CustomerOrderItemUI : MonoBehaviour
     {
         UpdateTimer(order.remainingTime, order.orderData.timeLimit);
     }
-    
+
     /// <summary>
     /// Set urgent state
     /// </summary>
     public void SetUrgent(bool urgent)
     {
         if (isUrgent == urgent) return;
-        
+
         isUrgent = urgent;
-        
+
         if (urgent)
         {
             StartUrgentAnimation();
@@ -320,47 +380,47 @@ public class CustomerOrderItemUI : MonoBehaviour
             StopUrgentAnimation();
         }
     }
-    
+
     /// <summary>
     /// Start urgent pulsing animation
     /// </summary>
     private void StartUrgentAnimation()
     {
         if (backgroundImage == null) return;
-        
+
         currentTween?.Kill();
         currentTween = backgroundImage.DOColor(urgentColor, 0.5f)
             .SetLoops(-1, LoopType.Yoyo)
             .SetEase(Ease.InOutSine);
     }
-    
+
     /// <summary>
     /// Stop urgent animation
     /// </summary>
     private void StopUrgentAnimation()
     {
         currentTween?.Kill();
-        
+
         if (backgroundImage != null)
         {
             backgroundImage.color = normalColor;
         }
     }
-    
+
     /// <summary>
     /// Play appearance animation
     /// </summary>
     public void PlayAppearAnimation(float duration)
     {
         if (transform == null) return;
-        
+
         // Start small and grow
         transform.localScale = Vector3.zero;
         currentTween?.Kill();
         currentTween = transform.DOScale(Vector3.one, duration)
             .SetEase(Ease.OutBack);
     }
-    
+
     /// <summary>
     /// Play completion animation
     /// </summary>
@@ -382,7 +442,7 @@ public class CustomerOrderItemUI : MonoBehaviour
                 .OnComplete(() => onComplete?.Invoke());
         }
     }
-    
+
     /// <summary>
     /// Play failure animation
     /// </summary>
@@ -397,7 +457,7 @@ public class CustomerOrderItemUI : MonoBehaviour
                     .OnComplete(() => onComplete?.Invoke());
             });
     }
-    
+
     void OnDestroy()
     {
         currentTween?.Kill();
