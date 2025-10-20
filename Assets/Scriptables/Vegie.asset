@@ -16,7 +16,7 @@ MonoBehaviour:
   orderDescription: 'ot mot
 
 '
-  customerAvatar: {fileID: -1591458549, guid: 473050aa6b7e3cd44825502a0424db28, type: 3}
+  customerAvatar: {fileID: 21300000, guid: 290f6c2b169a9cc45a3845864439f09d, type: 3}
   pizzaName: Veggie
   requiredIngredients:
   - ingredientType: 0

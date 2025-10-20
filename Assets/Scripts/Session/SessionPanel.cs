@@ -37,13 +37,13 @@ public class SessionPanel : MonoBehaviour
     {
         
         if (titleText != null)
-            titleText.text = $"Session {sessionNumber} Tamamlandý!";
+            titleText.text = $"Day {sessionNumber} Completed!";
 
         if (successfulOrdersText != null && sessionManager != null)
-            successfulOrdersText.text = $"Baþarýlý Sipariþler: {sessionManager.PizzasCompletedInSession}";
+            successfulOrdersText.text = $"Succesfull Orders: {sessionManager.PizzasCompletedInSession}";
 
         if (failedOrdersText != null && sessionManager != null)
-            failedOrdersText.text = $"Baþarýsýz Sipariþler: {sessionManager.FailedOrdersInSession}";
+            failedOrdersText.text = $"Failed Orders: {sessionManager.FailedOrdersInSession}";
 
         panel.SetActive(true);
         Time.timeScale = 0f;

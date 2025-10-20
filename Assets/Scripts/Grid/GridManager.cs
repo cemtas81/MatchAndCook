@@ -16,7 +16,7 @@ public class GridManager : MonoBehaviour
 
     [Header("Tile Setup")]
     [SerializeField] private GameObject tilePrefab;
-    [SerializeField] private GameObject powerUpTilePrefab; // Power-up tile prefab
+    [SerializeField] private GameObject powerUpTilePrefab;
     [SerializeField] private Transform gridParent;
 
     [Header("Animation Settings")]
@@ -26,57 +26,52 @@ public class GridManager : MonoBehaviour
     [SerializeField] private float delayBetweenActions = 0.3f;
 
     [Header("Power-Up Settings")]
-    [SerializeField] private int combo4Threshold = 4; // Minimum tiles for special power-ups
-    [SerializeField] private int combo5Threshold = 5; // Threshold for more powerful combos
-    [SerializeField] private int combo6Threshold = 6; // Threshold for most powerful combos
+    [SerializeField] private int combo4Threshold = 4;
+    [SerializeField] private int combo5Threshold = 5;
+    [SerializeField] private int combo6Threshold = 6;
 
     [Header("Performance Settings")]
-    [SerializeField] private int maxLargeMatchThreshold = 15; // Büyük eþleþme limiti
-    [SerializeField] private int maxFrameProcessingTiles = 8; // Frame baþýna iþlenecek tile
-    [SerializeField] private bool useOptimizedLargeMatches = true; // Optimizasyon açýk/kapalý
+    [SerializeField] private int maxLargeMatchThreshold = 15;
+    [SerializeField] private int maxFrameProcessingTiles = 8;
+    [SerializeField] private bool useOptimizedLargeMatches = true;
+
+    // Default sprite cached for reuse
+    private Sprite defaultSprite;
 
     // Grid data
     private Tile[,] grid;
     private bool isSwapping = false;
+    private bool isProcessingMatches = false;
 
     // Performance tracking
     private bool isProcessingLargeMatch = false;
     private Coroutine currentMatchProcessing = null;
+    private Vector3 gridCenterOffset;
 
     // Events
     public System.Action<int> OnTilesCleared;
     public System.Action OnGridRefilled;
 
-    // Pizza order integration
+    // References
     private PizzaOrderManager pizzaOrderManager;
-    // Power-up manager integration
     private PowerUpManager powerUpManager;
+
     private void Awake()
     {
-        // Find pizza order manager for ingredient coordination
+        // Cache references
         pizzaOrderManager = FindFirstObjectByType<PizzaOrderManager>();
-        // Find power-up manager for special tile creation
         powerUpManager = FindFirstObjectByType<PowerUpManager>();
+
+        // Pre-calculate grid center offset for reuse
+        gridCenterOffset = new Vector3((gridWidth - 1) * tileSpacing * 0.5f,
+                                      (gridHeight - 1) * tileSpacing * 0.5f, 0);
+
+        // Create and cache default sprite
+        defaultSprite = CreateDefaultSprite();
     }
 
     void Start()
     {
-        // Pizza sipariþinin baþlatýlmasýný bekle
-        //StartCoroutine(InitializeGridWhenReady());
-    }
-
-    /// <summary>
-    /// Pizza sipariþi hazýr olana kadar bekle, sonra grid'i baþlat
-    /// </summary>
-    private IEnumerator InitializeGridWhenReady()
-    {
-        // PizzaOrderManager'ýn hazýr olmasýný bekle
-        while (pizzaOrderManager == null || !pizzaOrderManager.IsOrderActive)
-        {
-            yield return new WaitForSeconds(0.1f);
-        }
-
-        // Þimdi grid'i baþlat
         InitializeGrid();
     }
 
@@ -87,14 +82,11 @@ public class GridManager : MonoBehaviour
     {
         grid = new Tile[gridWidth, gridHeight];
 
-        // Calculate grid center offset for proper positioning
-        Vector3 gridCenter = new Vector3((gridWidth - 1) * tileSpacing * 0.5f, (gridHeight - 1) * tileSpacing * 0.5f, 0);
-
         for (int x = 0; x < gridWidth; x++)
         {
             for (int y = 0; y < gridHeight; y++)
             {
-                CreateTile(x, y, gridCenter);
+                CreateTile(x, y, gridCenterOffset);
             }
         }
 
@@ -117,10 +109,11 @@ public class GridManager : MonoBehaviour
         }
 
         // Add SpriteRenderer if missing
-        if (tileObject.GetComponent<SpriteRenderer>() == null)
+        SpriteRenderer sr = tileObject.GetComponent<SpriteRenderer>();
+        if (sr == null)
         {
-            SpriteRenderer sr = tileObject.AddComponent<SpriteRenderer>();
-            sr.sprite = CreateDefaultSprite();
+            sr = tileObject.AddComponent<SpriteRenderer>();
+            sr.sprite = defaultSprite;
         }
 
         // Add Collider2D for input
@@ -155,7 +148,7 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Ensure no matches exist at game start - simple solution for 2 ingredients
+    /// Ensure no matches exist at game start
     /// </summary>
     private void EnsureNoInitialMatches()
     {
@@ -201,7 +194,7 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Original method but limited to required ingredients only
+    /// Ensures no matches exist at start with specified ingredient types
     /// </summary>
     private void EnsureNoMatchesWithLimitedTypes(List<Tile.TileType> allowedTypes)
     {
@@ -210,7 +203,7 @@ public class GridManager : MonoBehaviour
         bool hasMatches = true;
         int attempts = 0;
 
-        while (hasMatches && attempts < 50) // Reduced attempts since we have fewer types
+        while (hasMatches && attempts < 50)
         {
             hasMatches = false;
 
@@ -242,10 +235,9 @@ public class GridManager : MonoBehaviour
     {
         List<Tile.TileType> availableTypes = new List<Tile.TileType>();
 
-        // Only consider pizza ingredients (not special tiles) for safe placement
         foreach (Tile.TileType type in System.Enum.GetValues(typeof(Tile.TileType)))
         {
-            if (Tile.IsSpecial(type)) continue; // Skip special tiles for regular placement
+            if (Tile.IsSpecial(type)) continue;
 
             // Temporarily set this type and check for matches
             Tile.TileType originalType = grid[x, y].Type;
@@ -294,41 +286,23 @@ public class GridManager : MonoBehaviour
     /// </summary>
     private Tile.TileType GetRandomPizzaIngredient()
     {
-        // DEBUG EKLEME
-        string currentOrderName = pizzaOrderManager?.CurrentOrder?.pizzaName ?? "NULL";
-        bool isActive = pizzaOrderManager?.IsOrderActive ?? false;
-        
-        Debug.Log($"[GridManager] GetRandomPizzaIngredient - Order: {currentOrderName}, Active: {isActive}");
-        
         List<Tile.TileType> requiredIngredients = null;
         if (pizzaOrderManager != null && pizzaOrderManager.IsOrderActive)
         {
             requiredIngredients = pizzaOrderManager.GetRequiredIngredientTypes();
-            Debug.Log($"[GridManager] Required ingredients: {string.Join(", ", requiredIngredients)}");
         }
-        else
+        // Fallback durumunda son sipariþ malzemelerini kullan
+        else if (pizzaOrderManager != null && pizzaOrderManager.CurrentOrder != null)
         {
-            Debug.Log("[GridManager] NO ACTIVE ORDER - Using fallback!");
-            
-            // YENÝ: Fallback durumunda da son sipariþ malzemelerini kullan
-            if (pizzaOrderManager != null && pizzaOrderManager.CurrentOrder != null)
-            {
-                requiredIngredients = pizzaOrderManager.GetRequiredIngredientTypes();
-                Debug.Log($"[GridManager] FALLBACK using last order ingredients: {string.Join(", ", requiredIngredients)}");
-            }
+            requiredIngredients = pizzaOrderManager.GetRequiredIngredientTypes();
         }
 
         if (requiredIngredients != null && requiredIngredients.Count > 0)
         {
-            Tile.TileType selected = requiredIngredients[Random.Range(0, requiredIngredients.Count)];
-            Debug.Log($"[GridManager] Selected ingredient: {selected}");
-            return selected;
+            return requiredIngredients[Random.Range(0, requiredIngredients.Count)];
         }
 
-        // Fallback durumda hangi malzemeleri kullandýðýný da görelim
-        Debug.Log("[GridManager] FINAL FALLBACK MODE - Using all ingredients!");
-        
-        // Geri kalan kod ayný...
+        // Final fallback - tüm malzemelerden herhangi biri
         List<Tile.TileType> availableIngredients = new List<Tile.TileType>();
         foreach (Tile.TileType ingredient in System.Enum.GetValues(typeof(Tile.TileType)))
         {
@@ -364,7 +338,7 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public bool IsInputLocked()
     {
-        return isSwapping;
+        return isSwapping || isProcessingMatches;
     }
 
     /// <summary>
@@ -401,8 +375,8 @@ public class GridManager : MonoBehaviour
         tile2.SetGridPosition(temp1X, temp1Y);
 
         // Animate swap with DOTween
-        DOTween.Sequence()
-            .Join(tile1.transform.DOMove(tile2Pos, swapDuration).SetEase(Ease.InOutQuad))
+        Sequence swapSequence = DOTween.Sequence();
+        swapSequence.Join(tile1.transform.DOMove(tile2Pos, swapDuration).SetEase(Ease.InOutQuad))
             .Join(tile2.transform.DOMove(tile1Pos, swapDuration).SetEase(Ease.InOutQuad))
             .OnComplete(() =>
             {
@@ -424,8 +398,8 @@ public class GridManager : MonoBehaviour
                     tile2.SetGridPosition(temp2X, temp2Y);
 
                     // Animate swap back
-                    DOTween.Sequence()
-                        .Join(tile1.transform.DOMove(tile1Pos, swapDuration).SetEase(Ease.InOutQuad))
+                    Sequence swapBackSequence = DOTween.Sequence();
+                    swapBackSequence.Join(tile1.transform.DOMove(tile1Pos, swapDuration).SetEase(Ease.InOutQuad))
                         .Join(tile2.transform.DOMove(tile2Pos, swapDuration).SetEase(Ease.InOutQuad))
                         .OnComplete(() =>
                         {
@@ -500,9 +474,12 @@ public class GridManager : MonoBehaviour
     /// </summary>
     private void ProcessMatchesWithAnimation()
     {
+        isProcessingMatches = true;
+
         if (!CheckForMatches())
         {
             isSwapping = false;
+            isProcessingMatches = false;
             OnGridRefilled?.Invoke();
             return;
         }
@@ -514,11 +491,10 @@ public class GridManager : MonoBehaviour
         }
 
         List<Tile> tilesToClear = FindMatchingTiles();
-        
+
         // PERFORMANCE CHECK - Büyük eþleþmeleri tespit et
         if (useOptimizedLargeMatches && tilesToClear.Count > maxLargeMatchThreshold)
         {
-            Debug.Log($"[PERFORMANCE] Large match detected: {tilesToClear.Count} tiles. Using optimized processing.");
             if (currentMatchProcessing != null)
             {
                 StopCoroutine(currentMatchProcessing);
@@ -532,7 +508,7 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Process normal match (for small matches) - separate method for clarity
+    /// Process normal match (for small matches)
     /// </summary>
     private void ProcessNormalMatch(List<Tile> tilesToClear)
     {
@@ -549,7 +525,7 @@ public class GridManager : MonoBehaviour
             clearPositions[tile.gridX].Add(tile.gridY);
         }
 
-        // POWER-UP SYSTEM: Detect combos and determine power-up spawn location
+        // Detect combos and determine power-up spawn location
         Vector2Int? powerUpSpawnPosition = null;
         Tile.TileType powerUpType = Tile.TileType.Bomb;
 
@@ -569,24 +545,17 @@ public class GridManager : MonoBehaviour
             // Determine power-up type based on combo size
             if (tilesToClear.Count >= combo6Threshold)
             {
-                powerUpType = Tile.TileType.Star; // Star: destroys all of one type
+                powerUpType = Tile.TileType.Star;
             }
             else if (tilesToClear.Count >= combo5Threshold)
             {
-                powerUpType = Tile.TileType.Rainbow; // Rainbow: matches with anything
+                powerUpType = Tile.TileType.Rainbow;
             }
             else
             {
                 // Check if match is horizontal or vertical for Lightning
                 bool isHorizontal = CheckIfHorizontalMatch(tilesToClear);
-                if (isHorizontal)
-                {
-                    powerUpType = Tile.TileType.Lightning; // Lightning: destroys row/column
-                }
-                else
-                {
-                    powerUpType = Tile.TileType.Bomb; // Bomb: destroys 3x3
-                }
+                powerUpType = isHorizontal ? Tile.TileType.Lightning : Tile.TileType.Bomb;
             }
         }
 
@@ -598,17 +567,17 @@ public class GridManager : MonoBehaviour
         {
             if (tile != null)
             {
-                // Store the positions before clearing
-                int x = tile.gridX;
-                int y = tile.gridY;
-
                 // Animate tile clearing (scale down and fade out)
-                clearSequence.Join(tile.transform.DOScale(0.1f, matchClearDuration).SetEase(Ease.InBack));
-                clearSequence.Join(tile.GetComponent<SpriteRenderer>().DOFade(0, matchClearDuration).SetEase(Ease.InQuad));
+                SpriteRenderer sr = tile.GetComponent<SpriteRenderer>();
+                if (sr != null)
+                {
+                    clearSequence.Join(tile.transform.DOScale(0.1f, matchClearDuration).SetEase(Ease.InBack));
+                    clearSequence.Join(sr.DOFade(0, matchClearDuration).SetEase(Ease.InQuad));
+                }
             }
         }
 
-        // After all clear animations finish, destroy tiles and mark grid slots as empty
+        // After all clear animations finish
         Vector2Int? finalPowerUpPosition = powerUpSpawnPosition;
         Tile.TileType finalPowerUpType = powerUpType;
 
@@ -630,7 +599,7 @@ public class GridManager : MonoBehaviour
                 }
             }
 
-            // POWER-UP SYSTEM: Spawn power-up tile at pivot position
+            // Spawn power-up tile at pivot position
             if (finalPowerUpPosition.HasValue && IsValidPosition(finalPowerUpPosition.Value.x, finalPowerUpPosition.Value.y))
             {
                 CreatePowerUpTile(finalPowerUpPosition.Value.x, finalPowerUpPosition.Value.y, finalPowerUpType);
@@ -753,11 +722,10 @@ public class GridManager : MonoBehaviour
                     // Update tile position in grid
                     grid[x, newY].SetGridPosition(x, newY);
 
-                    // Animate the fall
+                    // Animate the fall - smooth easing
                     Vector3 targetPos = GetWorldPosition(x, newY);
-                    // Animate the fall - YUMUÞAK VE SMOOTH
                     dropSequence.Join(grid[x, newY].transform.DOMove(targetPos, fallDuration)
-                        .SetEase(Ease.InOutQuad)); // Çok yumuþak geçiþ
+                        .SetEase(Ease.InOutQuad));
 
                     tilesDropped = true;
                 }
@@ -787,7 +755,6 @@ public class GridManager : MonoBehaviour
     private void FillEmptySpacesWithAnimation()
     {
         Sequence fillSequence = DOTween.Sequence();
-        Vector3 gridCenter = new Vector3((gridWidth - 1) * tileSpacing * 0.5f, (gridHeight - 1) * tileSpacing * 0.5f, 0);
         bool tilesFilled = false;
 
         for (int x = 0; x < gridWidth; x++)
@@ -801,8 +768,8 @@ public class GridManager : MonoBehaviour
                 {
                     emptyCount++;
 
-                    // Create new tile - BURADA DEÐÝÞÝKLÝK
-                    CreateTile(x, y, gridCenter);
+                    // Create new tile
+                    CreateTile(x, y, gridCenterOffset);
 
                     // Position above screen and animate down
                     Vector3 startPos = GetWorldPosition(x, gridHeight + emptyCount);
@@ -830,6 +797,7 @@ public class GridManager : MonoBehaviour
             {
                 // No more matches, we're done
                 isSwapping = false;
+                isProcessingMatches = false;
                 OnGridRefilled?.Invoke();
             }
         });
@@ -848,6 +816,7 @@ public class GridManager : MonoBehaviour
             else
             {
                 isSwapping = false;
+                isProcessingMatches = false;
                 OnGridRefilled?.Invoke();
             }
         }
@@ -858,8 +827,7 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public Vector3 GetWorldPosition(int x, int y)
     {
-        Vector3 gridCenter = new Vector3((gridWidth - 1) * tileSpacing * 0.5f, (gridHeight - 1) * tileSpacing * 0.5f, 0);
-        return new Vector3(x * tileSpacing, y * tileSpacing, 0) - gridCenter;
+        return new Vector3(x * tileSpacing, y * tileSpacing, 0) - gridCenterOffset;
     }
 
     /// <summary>
@@ -912,8 +880,7 @@ public class GridManager : MonoBehaviour
     {
         if (grid[x, y] != null) return; // Position not empty
 
-        Vector3 gridCenter = new Vector3((gridWidth - 1) * tileSpacing * 0.5f, (gridHeight - 1) * tileSpacing * 0.5f, 0);
-        Vector3 position = new Vector3(x * tileSpacing, y * tileSpacing, 0) - gridCenter;
+        Vector3 position = GetWorldPosition(x, y);
 
         // Use power-up prefab if available, otherwise use regular tile prefab
         GameObject prefabToUse = powerUpTilePrefab != null ? powerUpTilePrefab : tilePrefab;
@@ -929,7 +896,7 @@ public class GridManager : MonoBehaviour
         if (tileObject.GetComponent<SpriteRenderer>() == null)
         {
             SpriteRenderer sr = tileObject.AddComponent<SpriteRenderer>();
-            sr.sprite = CreateDefaultSprite();
+            sr.sprite = defaultSprite;
         }
 
         if (tileObject.GetComponent<Collider2D>() == null)
@@ -953,8 +920,6 @@ public class GridManager : MonoBehaviour
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetEase(Ease.InOutSine);
             });
-
-        Debug.Log($"Created {powerUpType} power-up tile at ({x}, {y})");
     }
 
     /// <summary>
@@ -989,7 +954,7 @@ public class GridManager : MonoBehaviour
                 break;
 
             case Tile.TileType.Star:
-                // Entire column (changed from original spec for variety)
+                // Entire column
                 tilesToDestroy = GetTilesInColumn(x);
                 break;
 
@@ -1213,10 +1178,11 @@ public class GridManager : MonoBehaviour
                 // Sort tiles in this column by Y position (descending)
                 columnTiles[x].Sort((a, b) => b.gridY.CompareTo(a.gridY));
 
-                // PROCESS TILES IN BATCHES - FRAMERATE FRIENDLY
+                // PROCESS TILES IN BATCHES
                 for (int i = 0; i < columnTiles[x].Count; i++)
                 {
                     Tile tile = columnTiles[x][i];
+                    if (tile == null) continue;
 
                     // Animate tile clearing (scale down and fade out)
                     tile.transform.DOScale(0.1f, matchClearDuration).SetEase(Ease.InBack);
@@ -1227,7 +1193,6 @@ public class GridManager : MonoBehaviour
                     // Yield return null to spread out processing over multiple frames
                     if (processedTiles % maxFrameProcessingTiles == 0)
                     {
-                        // Wait until the end of the frame to continue
                         yield return new WaitForEndOfFrame();
                     }
                 }
@@ -1242,7 +1207,7 @@ public class GridManager : MonoBehaviour
         {
             foreach (Tile tile in columnTiles[x])
             {
-                if (tile != null && grid[tile.gridX, tile.gridY] == tile)
+                if (tile != null && IsValidPosition(tile.gridX, tile.gridY) && grid[tile.gridX, tile.gridY] == tile)
                 {
                     Destroy(tile.gameObject);
                     grid[tile.gridX, tile.gridY] = null;
@@ -1261,11 +1226,11 @@ public class GridManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Her yeni pizza sipariþi için grid'i sýfýrla
+    /// Reset grid for new pizza order
     /// </summary>
     public void ResetGridForNewOrder()
     {
-        // Mevcut grid'i temizle
+        // Clear existing grid
         if (grid != null)
         {
             for (int x = 0; x < gridWidth; x++)
@@ -1275,13 +1240,19 @@ public class GridManager : MonoBehaviour
                     if (grid[x, y] != null)
                     {
                         Destroy(grid[x, y].gameObject);
-                        grid[x, y] = null; // Array'i de temizle
+                        grid[x, y] = null;
                     }
                 }
             }
         }
 
-        // Yeni grid oluþtur
+        // Create new grid
         InitializeGrid();
+    }
+
+    void OnDestroy()
+    {
+        // Clean up any active DOTween animations to prevent memory leaks
+        DOTween.KillAll();
     }
 }

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PizzaOrder
   customerName: "mahm\u0131t"
   orderDescription: vfszvsbvssb
-  customerAvatar: {fileID: -1343065517, guid: 473050aa6b7e3cd44825502a0424db28, type: 3}
+  customerAvatar: {fileID: 21300000, guid: c389361776b0d994380795915e0f1c5c, type: 3}
   pizzaName: margarita
   requiredIngredients:
   - ingredientType: 0

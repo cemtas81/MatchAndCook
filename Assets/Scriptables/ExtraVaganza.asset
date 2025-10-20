@@ -16,7 +16,7 @@ MonoBehaviour:
   orderDescription: 'ot mot
 
 '
-  customerAvatar: {fileID: -1591458549, guid: 473050aa6b7e3cd44825502a0424db28, type: 3}
+  customerAvatar: {fileID: 21300000, guid: 9b67176f8b38df74a8f5e097d3ed7977, type: 3}
   pizzaName: Extravaganza
   requiredIngredients:
   - ingredientType: 0

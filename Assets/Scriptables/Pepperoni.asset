@@ -16,7 +16,7 @@ MonoBehaviour:
   orderDescription: 'maruul
 
 '
-  customerAvatar: {fileID: -1343065517, guid: 473050aa6b7e3cd44825502a0424db28, type: 3}
+  customerAvatar: {fileID: 21300000, guid: 567774dcb75b5624384d393554a40557, type: 3}
   pizzaName: pepperoni
   requiredIngredients:
   - ingredientType: 0
